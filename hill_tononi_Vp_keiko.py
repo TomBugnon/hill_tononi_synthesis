@@ -856,6 +856,12 @@ vmx=[-50,-50,-50,-50]
 nest.Simulate(Params['sim_interval'])
 
 #! loop over simulation intervals
+
+#TODO find the number of the first neuron in V2pyr
+first_neuron = 0
+
+nsteps = len(pylab.arange(Params['sim_interval'], Params['simtime'], Params['sim_interval']))
+step = 0
 for t in pylab.arange(Params['sim_interval'], Params['simtime'], Params['sim_interval']):
 
     # do the simulation
@@ -910,22 +916,28 @@ for t in pylab.arange(Params['sim_interval'], Params['simtime'], Params['sim_int
     pylab.jet()
 
     # now plot data from each recorder in turn, assume four recorders
+    raster_plot = np.zeros(Params['N']*2, nsteps)
     for name, r in detectors.items():
         rec = r[0]
         sp = r[1]
         pylab.subplot(2, 2, sp)
 
-        d = nest.GetStatus(rec)[0]['events']['senders']
-        d = nest.GetStatus(rec)[0]['events']['senders']
+        senders = nest.GetStatus(rec)[0]['events']['senders']
+        times = nest.GetStatus(rec)[0]['events']['times']
+
+        this_positions = senders - first_neuron
+        raster_plot[this_positions, step] = times
 
         print(name)
-        print(d)
+        print(senders)
 
 
     # pylab.draw()  # force drawing inside loop
     # pylab.show()  # required by ``pyreport``
 
 #    pylab.savefig('/home/kfujii2/nest/hill_tononi_figures/detectors/lambda_dg_%f_t_%f.png' % (Params['lambda_dg'], t))
+
+    step += 1
 
 #! just for some information at the end
 print(nest.GetKernelStatus())
