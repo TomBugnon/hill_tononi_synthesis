@@ -144,7 +144,7 @@
 #! **Note:** By default, the script does not show any graphics.
 #! Set ``SHOW_FIGURES`` to ``True`` to activate graphics.
 
-SHOW_FIGURES = False
+SHOW_FIGURES = True
 
 import pylab
 if not SHOW_FIGURES:
@@ -158,6 +158,8 @@ else:
 #!=============
 #! This tutorial gives a brief introduction to the ConnPlotter
 #! toolbox.  It is by no means complete.
+
+import readline
 
 #! Load pynest
 import nest
@@ -855,6 +857,8 @@ for t in pylab.arange(Params['sim_interval'], Params['simtime'], Params['sim_int
 
     pylab.draw()  # force drawing inside loop
     pylab.show()  # required by ``pyreport``
+
+    print('step')
 
     
 #! just for some information at the end

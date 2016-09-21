@@ -159,6 +159,9 @@ else:
 #! This tutorial gives a brief introduction to the ConnPlotter
 #! toolbox.  It is by no means complete.
 
+# Leonardo: I need to import readline for some reason, otherwise nest wont work
+import readline
+
 #! Load pynest
 import nest
 
@@ -168,6 +171,9 @@ import nest.topology as topo
 #! Make sure we start with a clean slate, even if we re-run the script
 #! in the same Python session. 
 nest.ResetKernel()
+
+# set multi-thread on
+nest.SetKernelStatus({"local_num_threads": 16})
 
 #! Import math, we need Pi
 import math
@@ -202,14 +208,14 @@ f_idx = open('idx.csv', 'w')
 #!   can be visualized in those intervals. Times are in ms. 
 Params = {'N'           :     40,
           'visSize'     :    8.0,
-          'f_dg'        :   20.0,
-          #'lambda_dg'   :    2.0, # spatial structure
-          'lambda_dg'   :   -1.0, # random: each pixel with random lambda_dg / phi_dg
+          'f_dg'        :    2.0,
+          'lambda_dg'   :    2.0, # spatial structure
+          #'lambda_dg'   :   -1.0, # random: each pixel with random lambda_dg / phi_dg
           'phi_dg'      :    0.0,
           'retDC'       :   30.0,
           'retAC'       :   30.0,
           'simtime'     :  100.0,
-          'sim_interval':    1.0
+          'sim_interval':    5.0
           }
 
 #! Neuron Models
@@ -270,7 +276,9 @@ Params = {'N'           :     40,
 nest.CopyModel('iaf_cond_alpha', 'NeuronModel',
                params = {'C_m'       :  16.0,
                          'E_L'       : (0.2 * 30.0 + 1.5 * -90.0)/(0.2 + 1.5),
-                         'g_L'       : 0.2 + 1.5, 
+                         'g_L'       : 0.2 + 1.5,
+                         #'E_L'       : 30.0,
+                         #'g_L'       : 0.2,
                          'E_ex'      :   0.0,
                          'E_in'      : -70.0,
                          'V_reset'   : -60.0,
@@ -820,22 +828,24 @@ for conn in [{"targets": {"model": "TpRelay"}},
 #! connect. ``loc`` is the subplot location for the layer.
 print("Connecting: Recording devices")
 recorders = {}
-#for name, loc, population, model in [('TpRelay'   , 1, Tp  , 'TpRelay'),
-#                                     ('Rp'        , 2, Rp  , 'RpNeuron'),
-#                                     ('Vp_v L4pyr', 3, Vp_v, 'L4pyr'),
-#                                     ('Vp_h L4pyr', 4, Vp_h, 'L4pyr')]:
-#    recorders[name] = (nest.Create('RecordingNode'), loc)
-#    tgts = [nd for nd in nest.GetLeaves(population)[0]
-#            if nest.GetStatus([nd], 'model')[0]==model]
-#    nest.Connect(recorders[name][0], tgts)   # one recorder to all targets
+for name, loc, population, model in [('TpRelay'   , 1, Tp  , 'TpRelay'),
+                                     ('Rp'        , 2, Rp  , 'RpNeuron'),
+                                     ('Vp_v L4pyr', 3, Vp_v, 'L4pyr'),
+                                     ('Vp_h L4pyr', 4, Vp_h, 'L4pyr')]:
+    recorders[name] = (nest.Create('RecordingNode'), loc)
+    tgts = [nd for nd in nest.GetLeaves(population)[0]
+            if nest.GetStatus([nd], 'model')[0]==model]
+    nest.Connect(recorders[name][0], tgts)   # one recorder to all targets
 
-#! TODO check if when recording the membrane potential the spikes are lost
+#! create the spike detectors
 detectors = {}
+nraster = 0
 for name, loc, population, model in [('Vp_v L4pyr', 3, Vp_v, 'L4pyr'),
                                      ('Vp_h L4pyr', 4, Vp_h, 'L4pyr')]:
     tgts = [nd for nd in nest.GetLeaves(population)[0]
             if nest.GetStatus([nd], 'model')[0]==model]
-    detectors[name] = (nest.Create('spike_detector'), loc, tgts)
+    detectors[name] = (nest.Create('spike_detector', params={"withgid": True, "withtime": True}), loc, tgts)
+    nraster += max(tgts) - min(tgts) + 1
     nest.Connect(tgts, detectors[name][0])
 
 #! Example simulation
@@ -865,7 +875,9 @@ nest.Simulate(Params['sim_interval'])
 first_neuron = 0
 
 nsteps = len(pylab.arange(Params['sim_interval'], Params['simtime'], Params['sim_interval']))
+raster_plot = np.zeros((nraster, nsteps))
 step = 0
+
 for t in pylab.arange(Params['sim_interval'], Params['simtime'], Params['sim_interval']):
 
     # do the simulation
@@ -892,11 +904,11 @@ for t in pylab.arange(Params['sim_interval'], Params['simtime'], Params['sim_int
         nest.SetStatus(rec, {'n_events': 0})
 
         #---keiko
-        print(name)
-        print('length d')
-        print(len(d))
-        print('length idx')
-        print(len(idx))
+        #print(name)
+        #print('length d')
+        #print(len(d))
+        #print('length idx')
+        #print(len(idx))
         #f_Vm.write(str(pylab.reshape(d,(1,len(d)))))
         #f_idx.write(str(pylab.reshape(idx,(1,len(d)))))
         #writer_Vm.writerows(pylab.reshape(d,(1,len(d))))
@@ -913,35 +925,75 @@ for t in pylab.arange(Params['sim_interval'], Params['simtime'], Params['sim_int
     #pylab.draw()  # force drawing inside loop
     #pylab.show()  # required by ``pyreport``
 
-    pylab.savefig('./figures/recorders/lambda_dg_%f_t_%f.png' % (Params['lambda_dg'], t))
+    pylab.savefig('./figures/recorders/new/lambda_dg_%f_t_%f.png' % (Params['lambda_dg'], t))
 
-    # clear figure and choose colormap
-    pylab.clf()
-    pylab.jet()
-
-    # now plot data from each recorder in turn, assume four recorders
-    raster_plot = np.zeros(Params['N']*2, nsteps)
+    # save rater information
+    curpos = 0
     for name, r in detectors.items():
         rec = r[0]
         sp = r[1]
-        pylab.subplot(2, 2, sp)
+        tgts = r[2]
 
         senders = nest.GetStatus(rec)[0]['events']['senders']
         times = nest.GetStatus(rec)[0]['events']['times']
 
-        this_positions = senders - first_neuron
-        raster_plot[:, step] = times
+        nneurons = max(tgts) - min(tgts)
+        this_neurons = np.zeros(nneurons+1)
+        this_neurons[senders-min(tgts)] = times
+        raster_plot[curpos:curpos+nneurons+1, step] = this_neurons
+        curpos = curpos + nneurons + 1
 
-        print(name)
-        print(senders)
+    # is cummulative, so remove last count
+    # if ep > 0:
+    #   raster_plot[:,step] -= raster_plot[:,step-1]
 
-
-    # pylab.draw()  # force drawing inside loop
-    # pylab.show()  # required by ``pyreport``
-
-#    pylab.savefig('/home/kfujii2/nest/hill_tononi_figures/detectors/lambda_dg_%f_t_%f.png' % (Params['lambda_dg'], t))
-
+    print(raster_plot[0,:])
     step += 1
+
+# create raster figure
+pylab.clf()
+
+#      =========   =======================================================
+#      Colormap    Description
+#      =========   =======================================================
+#      autumn      sequential linearly-increasing shades of red-orange-yellow
+#      bone        sequential increasing black-white color map with
+#                  a tinge of blue, to emulate X-ray film
+#      cool        linearly-decreasing shades of cyan-magenta
+#      copper      sequential increasing shades of black-copper
+#      flag        repetitive red-white-blue-black pattern (not cyclic at
+#                  endpoints)
+#      gray        sequential linearly-increasing black-to-white
+#                  grayscale
+#      hot         sequential black-red-yellow-white, to emulate blackbody
+#                  radiation from an object at increasing temperatures
+#      hsv         cyclic red-yellow-green-cyan-blue-magenta-red, formed
+#                  by changing the hue component in the HSV color space
+#      inferno     perceptually uniform shades of black-red-yellow
+#      jet         a spectral map with dark endpoints, blue-cyan-yellow-red;
+#                  based on a fluid-jet simulation by NCSA [#]_
+#      magma       perceptually uniform shades of black-red-white
+#      pink        sequential increasing pastel black-pink-white, meant
+#                  for sepia tone colorization of photographs
+
+#pylab.set_cmap('hot')
+pylab.set_cmap('gray')
+
+figure = pylab.gcf() # get current figure
+figure.set_size_inches(5, 3)
+
+
+pylab.imshow(raster_plot, aspect='auto', interpolation='nearest')
+pylab.colorbar()
+
+font = {'family' : 'normal',
+        'weight' : 'normal',
+        'size'   : 8}
+
+pylab.rc('font', **font)
+
+print('printing raster for lambda_dg == %f' % Params['lambda_dg'])
+pylab.savefig('./figures/detectors/new/spikes_lambda_dg_%f.png' % Params['lambda_dg'], dpi = 300)
 
 #! just for some information at the end
 print(nest.GetKernelStatus())
