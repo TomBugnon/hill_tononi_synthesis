@@ -159,6 +159,7 @@ else:
 #! This tutorial gives a brief introduction to the ConnPlotter
 #! toolbox.  It is by no means complete.
 
+# Leonardo: I need to import readline for some reason, otherwise nest wont work
 import readline
 
 #! Load pynest
@@ -171,9 +172,21 @@ import nest.topology as topo
 #! in the same Python session. 
 nest.ResetKernel()
 
+# set multi-thread on
+nest.SetKernelStatus({"local_num_threads": 16})
+
 #! Import math, we need Pi
 import math
 
+import numpy as np
+
+#! --- keiko 9/14/2016
+#! Import csv to save V_m data
+import csv
+f_Vm = open('V_m.csv', 'w')
+#writer_Vm = csv.writer(f_Vm)
+f_idx = open('idx.csv', 'w')
+#writer_idx = csv.writer(f_idx)
 
 #! Configurable Parameters
 #! =======================
@@ -196,7 +209,8 @@ import math
 Params = {'N'           :     40,
           'visSize'     :    8.0,
           'f_dg'        :    2.0,
-          'lambda_dg'   :    2.0,
+          'lambda_dg'   :    2.0, # spatial structure
+          #'lambda_dg'   :   -1.0, # random: each pixel with random lambda_dg / phi_dg
           'phi_dg'      :    0.0,
           'retDC'       :   30.0,
           'retAC'       :   30.0,
@@ -262,7 +276,9 @@ Params = {'N'           :     40,
 nest.CopyModel('iaf_cond_alpha', 'NeuronModel',
                params = {'C_m'       :  16.0,
                          'E_L'       : (0.2 * 30.0 + 1.5 * -90.0)/(0.2 + 1.5),
-                         'g_L'       : 0.2 + 1.5, 
+                         'g_L'       : 0.2 + 1.5,
+                         #'E_L'       : 30.0,
+                         #'g_L'       : 0.2,
                          'E_ex'      :   0.0,
                          'E_in'      : -70.0,
                          'V_reset'   : -60.0,
@@ -375,12 +391,22 @@ layerProps = {'rows'     : Params['N'],
 layerProps.update({'elements': 'RetinaNode'})
 retina = topo.CreateLayer(layerProps)
 
-#! Now set phases of retinal oscillators; we use a list comprehension instead
-#! of a loop.
-[nest.SetStatus([n], {"phase": phaseInit(topo.GetPosition([n])[0], 
+# Original: Gabor retina input
+
+if Params['lambda_dg'] >= 0:
+    #! Now set phases of retinal oscillators; we use a list comprehension instead
+    #! of a loop.
+    [nest.SetStatus([n], {"phase": phaseInit(topo.GetPosition([n])[0],
                                          Params["lambda_dg"],
                                          Params["phi_dg"])})
- for n in nest.GetLeaves(retina)[0]]
+    for n in nest.GetLeaves(retina)[0]]
+else:
+    # Leonardo: Random retina input
+
+    [nest.SetStatus([n], {"phase": phaseInit(topo.GetPosition([n])[0],
+                                         np.pi * np.random.rand(),
+                                         np.pi * np.random.rand())})
+    for n in nest.GetLeaves(retina)[0]]
 
 #! Thalamus
 #! --------
@@ -443,9 +469,9 @@ nest.PrintNetwork()
 
 #! We can also try to plot a single layer in a network. For
 #! simplicity, we use Rp, which has only a single neuron per position.
-topo.PlotLayer(Rp)
-pylab.title('Layer Rp')
-pylab.show()
+#topo.PlotLayer(Rp)
+#pylab.title('Layer Rp')
+#pylab.show()
 
 
 #! Synapse models
@@ -551,7 +577,8 @@ verIntraBase = {"connection_type": "divergent",
                 "delays": {"uniform": {"min": 1.75, "max": 2.25}}}
 
 for conn in [{"sources": {"model": "L23pyr"}, "targets": {"model": "L56pyr"}, "weights": 1.0},
-             {"sources": {"model": "L23pyr"}, "targets": {"model": "L23in" }, "weights": 1.0},
+             {"sources": {"model": "L23pyr"}, "targets": {"model": "L56in"}, "weights": 1.0}, #---keiko
+             #{"sources": {"model": "L23pyr"}, "targets": {"model": "L23in"}, "weights": 1.0}, #---original
              {"sources": {"model": "L4pyr" }, "targets": {"model": "L23pyr"}},
              {"sources": {"model": "L4pyr" }, "targets": {"model": "L23in" }},
              {"sources": {"model": "L56pyr"}, "targets": {"model": "L23pyr"}},
@@ -606,7 +633,8 @@ corThalBase = {"connection_type": "divergent",
 #! dictionaries with all values that need updating
 for conn in [{"sources": {"model": "L56pyr"}, "targets": {"model": "TpRelay" }},
              {"sources": {"model": "L56pyr"}, "targets": {"model": "TpInter" }}]:
-    ndict = intraInhBase.copy()
+    #ndict = corThalBase.copy() #---keiko
+    ndict = intraInhBase.copy() #---original
     ndict.update(conn)
     ctConnections.append(ndict)
 
@@ -683,8 +711,12 @@ thalCorDiff = {"connection_type": "convergent",
                "kernel": {"gaussian": {"p_center": 0.1, "sigma": 7.5 * dpc}},
                "delays": {"uniform": {"min": 2.75, "max": 3.25}}}
 
-for conn in [{"targets": {"model": "L4pyr" }},
-             {"targets": {"model": "L56pyr"}}]:
+#---keiko
+for conn in [{"targets": {"model": "L4in"}},
+             {"targets": {"model": "L56in"}}]:
+#---original
+#for conn in [{"targets": {"model": "L4pyr"}},
+#             {"targets": {"model": "L56pyr"}}]:
     thalCorDiff.update(conn)
     topo.ConnectLayers(Tp, Vp_h, thalCorDiff)
     topo.ConnectLayers(Tp, Vp_v, thalCorDiff)
@@ -773,19 +805,19 @@ for conn in [{"targets": {"model": "TpRelay"}},
 #! the connections from the central node of various layers. 
 
 #! Connections from Retina to TpRelay
-topo.PlotTargets(topo.FindCenterElement(retina), Tp, 'TpRelay', 'AMPA')
-pylab.title('Connections Retina -> TpRelay')
-pylab.show()
+#topo.PlotTargets(topo.FindCenterElement(retina), Tp, 'TpRelay', 'AMPA')
+#pylab.title('Connections Retina -> TpRelay')
+#pylab.show()
 
 #! Connections from TpRelay to L4pyr in Vp (horizontally tuned)
-topo.PlotTargets(topo.FindCenterElement(Tp), Vp_h, 'L4pyr', 'AMPA')
-pylab.title('Connections TpRelay -> Vp(h) L4pyr')
-pylab.show()
+#topo.PlotTargets(topo.FindCenterElement(Tp), Vp_h, 'L4pyr', 'AMPA')
+#pylab.title('Connections TpRelay -> Vp(h) L4pyr')
+#pylab.show()
 
 #! Connections from TpRelay to L4pyr in Vp (vertically tuned)
-topo.PlotTargets(topo.FindCenterElement(Tp), Vp_v, 'L4pyr', 'AMPA')
-pylab.title('Connections TpRelay -> Vp(v) L4pyr')
-pylab.show()
+#topo.PlotTargets(topo.FindCenterElement(Tp), Vp_v, 'L4pyr', 'AMPA')
+#pylab.title('Connections TpRelay -> Vp(v) L4pyr')
+#pylab.show()
 
 #! Recording devices
 #! =================
@@ -801,10 +833,20 @@ for name, loc, population, model in [('TpRelay'   , 1, Tp  , 'TpRelay'),
                                      ('Vp_v L4pyr', 3, Vp_v, 'L4pyr'),
                                      ('Vp_h L4pyr', 4, Vp_h, 'L4pyr')]:
     recorders[name] = (nest.Create('RecordingNode'), loc)
-    tgts = [nd for nd in nest.GetLeaves(population)[0] 
+    tgts = [nd for nd in nest.GetLeaves(population)[0]
             if nest.GetStatus([nd], 'model')[0]==model]
     nest.Connect(recorders[name][0], tgts)   # one recorder to all targets
 
+#! create the spike detectors
+detectors = {}
+nraster = 0
+for name, loc, population, model in [('Vp_v L4pyr', 3, Vp_v, 'L4pyr'),
+                                     ('Vp_h L4pyr', 4, Vp_h, 'L4pyr')]:
+    tgts = [nd for nd in nest.GetLeaves(population)[0]
+            if nest.GetStatus([nd], 'model')[0]==model]
+    detectors[name] = (nest.Create('spike_detector', params={"withgid": True, "withtime": True}), loc, tgts)
+    nraster += max(tgts) - min(tgts) + 1
+    nest.Connect(tgts, detectors[name][0])
 
 #! Example simulation
 #! ====================
@@ -822,10 +864,20 @@ nest.SetStatus([0],{'print_time': True})
 #! populations recorded.
 vmn=[-80,-80,-80,-80]
 vmx=[-50,-50,-50,-50]
+#vmn=[-62,-62,-62,-62]
+#vmx=[-55,-55,-55,-55]
 
 nest.Simulate(Params['sim_interval'])
 
 #! loop over simulation intervals
+
+#TODO find the number of the first neuron in V2pyr
+first_neuron = 0
+
+nsteps = len(pylab.arange(Params['sim_interval'], Params['simtime'], Params['sim_interval']))
+raster_plot = np.zeros((nraster, nsteps))
+step = 0
+
 for t in pylab.arange(Params['sim_interval'], Params['simtime'], Params['sim_interval']):
 
     # do the simulation
@@ -840,7 +892,9 @@ for t in pylab.arange(Params['sim_interval'], Params['simtime'], Params['sim_int
         rec = r[0]
         sp = r[1]
         pylab.subplot(2,2,sp)
+
         d = nest.GetStatus(rec)[0]['events']['V_m']
+        idx = nest.GetStatus(rec)[0]['events']['senders'] #---keiko
 
         if len(d) != Params['N']**2:
             # cortical layer with two neurons in each location, take average
@@ -848,6 +902,19 @@ for t in pylab.arange(Params['sim_interval'], Params['simtime'], Params['sim_int
 
         # clear data from multimeter
         nest.SetStatus(rec, {'n_events': 0})
+
+        #---keiko
+        #print(name)
+        #print('length d')
+        #print(len(d))
+        #print('length idx')
+        #print(len(idx))
+        #f_Vm.write(str(pylab.reshape(d,(1,len(d)))))
+        #f_idx.write(str(pylab.reshape(idx,(1,len(d)))))
+        #writer_Vm.writerows(pylab.reshape(d,(1,len(d))))
+        #writer_idx.writerows(pylab.reshape(idx,(1,len(idx))))
+        #print(Params['N'])
+
         pylab.imshow(pylab.reshape(d, (Params['N'],Params['N'])),
                      aspect='equal', interpolation='nearest',
                      extent=(0,Params['N']+1,0,Params['N']+1),
@@ -855,12 +922,82 @@ for t in pylab.arange(Params['sim_interval'], Params['simtime'], Params['sim_int
         pylab.colorbar()
         pylab.title(name + ', t = %6.1f ms' % nest.GetKernelStatus()['time'])
 
-    pylab.draw()  # force drawing inside loop
-    pylab.show()  # required by ``pyreport``
+    #pylab.draw()  # force drawing inside loop
+    #pylab.show()  # required by ``pyreport``
 
-    print('step')
+    pylab.savefig('./figures/recorders/new/lambda_dg_%f_t_%f.png' % (Params['lambda_dg'], t))
 
-    
+    # save rater information
+    curpos = 0
+    for name, r in detectors.items():
+        rec = r[0]
+        sp = r[1]
+        tgts = r[2]
+
+        senders = nest.GetStatus(rec)[0]['events']['senders']
+        times = nest.GetStatus(rec)[0]['events']['times']
+
+        nneurons = max(tgts) - min(tgts)
+        this_neurons = np.zeros(nneurons+1)
+        this_neurons[senders-min(tgts)] = times
+        raster_plot[curpos:curpos+nneurons+1, step] = this_neurons
+        curpos = curpos + nneurons + 1
+
+    # is cummulative, so remove last count
+    # if ep > 0:
+    #   raster_plot[:,step] -= raster_plot[:,step-1]
+
+    print(raster_plot[0,:])
+    step += 1
+
+# create raster figure
+pylab.clf()
+
+#      =========   =======================================================
+#      Colormap    Description
+#      =========   =======================================================
+#      autumn      sequential linearly-increasing shades of red-orange-yellow
+#      bone        sequential increasing black-white color map with
+#                  a tinge of blue, to emulate X-ray film
+#      cool        linearly-decreasing shades of cyan-magenta
+#      copper      sequential increasing shades of black-copper
+#      flag        repetitive red-white-blue-black pattern (not cyclic at
+#                  endpoints)
+#      gray        sequential linearly-increasing black-to-white
+#                  grayscale
+#      hot         sequential black-red-yellow-white, to emulate blackbody
+#                  radiation from an object at increasing temperatures
+#      hsv         cyclic red-yellow-green-cyan-blue-magenta-red, formed
+#                  by changing the hue component in the HSV color space
+#      inferno     perceptually uniform shades of black-red-yellow
+#      jet         a spectral map with dark endpoints, blue-cyan-yellow-red;
+#                  based on a fluid-jet simulation by NCSA [#]_
+#      magma       perceptually uniform shades of black-red-white
+#      pink        sequential increasing pastel black-pink-white, meant
+#                  for sepia tone colorization of photographs
+
+#pylab.set_cmap('hot')
+pylab.set_cmap('gray')
+
+figure = pylab.gcf() # get current figure
+figure.set_size_inches(5, 3)
+
+
+pylab.imshow(raster_plot, aspect='auto', interpolation='nearest')
+pylab.colorbar()
+
+font = {'family' : 'normal',
+        'weight' : 'normal',
+        'size'   : 8}
+
+pylab.rc('font', **font)
+
+print('printing raster for lambda_dg == %f' % Params['lambda_dg'])
+pylab.savefig('./figures/detectors/new/spikes_lambda_dg_%f.png' % Params['lambda_dg'], dpi = 300)
+
 #! just for some information at the end
 print(nest.GetKernelStatus())
 
+#--- keiko 9/14/2016
+f_Vm.close()
+f_idx.close()
