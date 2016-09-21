@@ -172,15 +172,11 @@ nest.ResetKernel()
 #! Import math, we need Pi
 import math
 
+#! Modules for saving data
 import numpy as np
+import pickle
+import scipy.io
 
-#! --- keiko 9/14/2016
-#! Import csv to save V_m data
-import csv
-f_Vm = open('V_m.csv', 'w')
-#writer_Vm = csv.writer(f_Vm)
-f_idx = open('idx.csv', 'w')
-#writer_idx = csv.writer(f_idx)
 
 #! Configurable Parameters
 #! =======================
@@ -208,7 +204,7 @@ Params = {'N'           :     40,
           'phi_dg'      :    0.0,
           'retDC'       :   30.0,
           'retAC'       :   30.0,
-          'simtime'     :  100.0,
+          'simtime'     :   10.0,
           'sim_interval':    1.0
           }
 
@@ -821,15 +817,23 @@ for conn in [{"targets": {"model": "TpRelay"}},
 print("Connecting: Recording devices")
 recorders = {}
 detectors = {}
-for name, loc, population, model in [('TpRelay'   , 1, Tp  , 'TpRelay'),
-                                     ('Rp'        , 2, Rp  , 'RpNeuron'),
-                                     ('Vp_v L4pyr', 3, Vp_v, 'L4pyr'),
-                                     ('Vp_h L4pyr', 4, Vp_h, 'L4pyr')]:
-#    recorders[name] = (nest.Create('RecordingNode'), loc)
+#--- original
+#for name, loc, population, model in [('TpRelay', 1, Tp, 'TpRelay'),
+#                                     ('Rp', 2, Rp, 'RpNeuron'),
+#                                     ('Vp_v L4pyr', 3, Vp_v, 'L4pyr'),
+#                                     ('Vp_h L4pyr', 4, Vp_h, 'L4pyr')]:
+#--- Record all populations
+for name, loc, population, model in [('TpRelay', 1, Tp, 'TpRelay'),
+                                     ('Rp', 2, Rp, 'RpNeuron'),
+                                     ('Vp_v L23pyr', 3, Vp_v, 'L23pyr'),
+                                     ('Vp_v L4pyr', 4, Vp_v, 'L4pyr'),
+                                     ('Vp_h L23pyr', 5, Vp_h, 'L23pyr'),
+                                     ('Vp_h L4pyr', 6, Vp_h, 'L4pyr')]:
+    recorders[name] = (nest.Create('RecordingNode'), loc)
     detectors[name] = (nest.Create('spike_detector'), loc)
     tgts = [nd for nd in nest.GetLeaves(population)[0] 
             if nest.GetStatus([nd], 'model')[0]==model]
-#    nest.Connect(recorders[name][0], tgts)   # one recorder to all targets
+    nest.Connect(recorders[name][0], tgts)   # one recorder to all targets
     nest.Connect(tgts, detectors[name][0])
 
 
@@ -855,11 +859,19 @@ vmx=[-50,-50,-50,-50]
 
 nest.Simulate(Params['sim_interval'])
 
+
+#--- Define filenames to save data
+dirname = './spiking_data/'
+filename_TpRelay = dirname + 'TpRelay'
+filename_Rp      = dirname + 'Rp'
+filename_Vp_h_L23pyr = dirname + 'Vp_h_L23pyr'
+filename_Vp_h_L4pyr  = dirname + 'Vp_h_L4pyr'
+filename_Vp_v_L23pyr = dirname + 'Vp_v_L23pyr'
+filename_Vp_v_L4pyr  = dirname + 'Vp_v_L4pyr'
+# f_Vp_h_L4pyr = open(filename_Vp_h_L4pyr_pickle,'w')
+
+
 #! loop over simulation intervals
-
-#TODO find the number of the first neuron in V2pyr
-first_neuron = 0
-
 nsteps = len(pylab.arange(Params['sim_interval'], Params['simtime'], Params['sim_interval']))
 step = 0
 for t in pylab.arange(Params['sim_interval'], Params['simtime'], Params['sim_interval']):
@@ -915,33 +927,67 @@ for t in pylab.arange(Params['sim_interval'], Params['simtime'], Params['sim_int
     pylab.clf()
     pylab.jet()
 
-    # now plot data from each recorder in turn, assume four recorders
-    raster_plot = np.zeros(Params['N']*2, nsteps)
-    for name, r in detectors.items():
-        rec = r[0]
-        sp = r[1]
-        pylab.subplot(2, 2, sp)
+    #raster_plot = np.zeros(Params['N'] * 2, nsteps)
 
+    # now plot data from each recorder in turn, assume four recorders
+    for name, r in detectors.items():
+
+        rec = r[0]
+        #sp = r[1]
+        #pylab.subplot(2, 2, sp)
         senders = nest.GetStatus(rec)[0]['events']['senders']
         times = nest.GetStatus(rec)[0]['events']['times']
 
-        this_positions = senders - first_neuron
-        raster_plot[this_positions, step] = times
+        senders = pylab.reshape(senders, (len(senders), 1))
+        times = pylab.reshape(times, (len(times), 1))
+        firing_data = np.hstack((times, senders))
 
-        print(name)
-        print(senders)
+        # print(name)
 
+        if name == 'TpRelay':
+            pickle.dump(firing_data, open(filename_TpRelay+'.p','w'))
+        elif name == 'Rp':
+            pickle.dump(firing_data, open(filename_Rp+'.p','w'))
+        elif name == 'Vp_h L23pyr':
+            pickle.dump(firing_data, open(filename_Vp_h_L23pyr+'.p','w'))
+            pickle.dump(firing_data, open(filename_Vp_h_L23pyr+'_%d.p' % step,'w'))
+        elif name == 'Vp_h L4pyr':
+            pickle.dump(firing_data, open(filename_Vp_h_L4pyr+'.p','w'))
+            # pickle.dump(firing_data, f_Vp_h_L4pyr)
+        elif name == 'Vp_v L23pyr':
+            pickle.dump(firing_data, open(filename_Vp_v_L23pyr+'.p','w'))
+        elif name == 'Vp_v L4pyr':
+            pickle.dump(firing_data, open(filename_Vp_v_L4pyr + '.p','w'))
+        else:
+            print(name)
 
     # pylab.draw()  # force drawing inside loop
     # pylab.show()  # required by ``pyreport``
-
-#    pylab.savefig('/home/kfujii2/nest/hill_tononi_figures/detectors/lambda_dg_%f_t_%f.png' % (Params['lambda_dg'], t))
+    # pylab.savefig('/home/kfujii2/nest/hill_tononi_figures/detectors/lambda_dg_%f_t_%f.png' % (Params['lambda_dg'], t))
 
     step += 1
 
+
+#! save for matlab
+#--- open pickle file and save to mat file
+TpRelay = pickle.load(open(filename_TpRelay+'.p','r'))
+scipy.io.savemat(filename_TpRelay+'.mat',mdict={'TpRelay':TpRelay})
+
+Rp = pickle.load(open(filename_Rp+'.p','r'))
+scipy.io.savemat(filename_Rp+'.mat',mdict={'Rp':Rp})
+
+Vp_h_L23pyr = pickle.load(open(filename_Vp_h_L23pyr+'.p','r'))
+scipy.io.savemat(filename_Vp_h_L23pyr+'.mat',mdict={'Vp_h_L23pyr':Vp_h_L23pyr})
+
+Vp_h_L4pyr = pickle.load(open(filename_Vp_h_L4pyr+'.p','r'))
+scipy.io.savemat(filename_Vp_h_L4pyr+'.mat',mdict={'Vp_h_L4pyr':Vp_h_L4pyr})
+
+Vp_v_L23pyr = pickle.load(open(filename_Vp_v_L23pyr+'.p','r'))
+scipy.io.savemat(filename_Vp_v_L23pyr+'.mat',mdict={'Vp_v_L23pyr':Vp_v_L23pyr})
+
+Vp_v_L4pyr = pickle.load(open(filename_Vp_v_L4pyr+'.p','r'))
+scipy.io.savemat(filename_Vp_v_L4pyr+'.mat',mdict={'Vp_v_L4pyr':Vp_v_L4pyr})
+
+
 #! just for some information at the end
 print(nest.GetKernelStatus())
-
-#--- keiko 9/14/2016
-f_Vm.close()
-f_idx.close()
