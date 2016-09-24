@@ -25,7 +25,7 @@ def update_line(num, data, line):
 root_dir = '/home/leonardo/projects/nsdm/hill_tononi_synthesis/data'
 
 #files_to_load = '/spikes_Vp*L4*.pickle'
-files_to_load = '/*.pickle'
+files_to_load = '/results_*.pickle'
 
 all_files = glob.glob(root_dir + files_to_load)
 
@@ -51,7 +51,8 @@ for idx, next_file in enumerate(all_files):
         fig = plt.figure()
         #plt.set_cmap('gray')
 
-        thresh = .1
+        this_data = np.absolute(this_data)
+        thresh = 1.3
         this_data[np.isnan(this_data)] = 0
         this_data[this_data < thresh] = 0
 

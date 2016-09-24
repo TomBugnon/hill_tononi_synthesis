@@ -10,6 +10,7 @@ import glob
 import pickle
 from pypci import pci
 import time
+from scipy import stats
 
 import matplotlib
 matplotlib.use("Agg")
@@ -108,6 +109,8 @@ for folder_idx, this_folder in enumerate(all_folders):
 results = dict()
 results['mean'] = np.mean(_all_sim, 0)
 results['z'] = results['mean']/np.std(_all_sim,0)
+results['t'] = stats.ttest_1samp(_all_sim, .5, axis=0).statistic
+#np.mean((_all_sim - results['mean'])/(np.std(_all_sim,0)/np.sqrt(_all_sim.shape[0])),0)
 
 output_file = 'results_' + dir_to_load.replace('*', '').replace('/', '') + '_' + files_to_load.replace('*', '').replace('/', '')
 
