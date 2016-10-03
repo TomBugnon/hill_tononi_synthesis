@@ -1,8 +1,10 @@
 import numpy as np
 import pickle
 
+# only for keiko's environment
 import sys
 sys.path.append('/usr/lib/python2.7/dist-packages')
+
 import matplotlib.pyplot as plt
 
 
@@ -81,8 +83,20 @@ for i in range(0,num_neurons,1):
 import nest
 resolution = nest.GetKernelStatus()['resolution']
 sim_time = 40
-num_step = int( sim_time * (1/resolution) )
 
+# 1 msec resolution version
+num_step = sim_time
+states = np.zeros((num_neurons,num_step))
+states_all = [] # to draw a histogram of state labeling
+for i in range(0,num_neurons,1):
+
+    tmp_step = (np.asarray(ftime[i])+0.5).astype(int)  # rounding, ex) 0.5-1.4msec -> 1msec
+    states[i][tmp_step] = firing_segregation[i]
+    states_all = states_all + states[i].astype(int).tolist()
+
+'''
+# 0.1 mec resolution version
+num_step = int( sim_time * (1/resolution) )
 states = np.zeros((num_neurons,num_step))
 states_all = [] # to draw a histogram of state labeling
 for i in range(0,num_neurons,1):
@@ -90,6 +104,7 @@ for i in range(0,num_neurons,1):
     tmp_step = ((1/resolution)*np.asarray(ftime[i])).astype(int)
     states[i][tmp_step] = firing_segregation[i]
     states_all = states_all + states[i].astype(int).tolist()
+'''
 
 plt.hist(states_all)
 plt.title('states: 1 = Regular spiking, 2 = Bursting')
