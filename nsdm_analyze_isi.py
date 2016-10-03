@@ -8,16 +8,16 @@ sys.path.append('/usr/lib/python2.7/dist-packages')
 import matplotlib.pyplot as plt
 
 
-#filename = 'spikes_Vp_h L4pyr.pickle'
-filename = 'spikes_Vp_v L4pyr.pickle'
+filename = 'spikes_Vp_h L4pyr.pickle'
+#filename = 'spikes_Vp_v L4pyr.pickle'
 
 #--- random
-#dir_to_load = 'sim_1_phi_dg_0.00_retAC_30.00_simtime_40.00_lambda_dg_-1.00_sim_interval_2.00_visSize_8.00_retDC_30.00_f_dg_20.00_N_40.00_detectors/'
-#title_str = 'Histgram of ISI (Random ' + filename + ')'
+dir_to_load = 'sim_1_phi_dg_0.00_retAC_30.00_simtime_40.00_lambda_dg_-1.00_sim_interval_2.00_visSize_8.00_retDC_30.00_f_dg_20.00_N_40.00_detectors/'
+title_str = 'Histgram of ISI (Random ' + filename + ')'
 
 #--- structured
-dir_to_load = 'sim_1_phi_dg_0.00_retAC_30.00_simtime_40.00_lambda_dg_2.00_sim_interval_2.00_visSize_8.00_retDC_30.00_f_dg_20.00_N_40.00_detectors/'
-title_str = 'Histgram of ISI (Structured ' + filename + ')'
+#dir_to_load = 'sim_1_phi_dg_0.00_retAC_30.00_simtime_40.00_lambda_dg_2.00_sim_interval_2.00_visSize_8.00_retDC_30.00_f_dg_20.00_N_40.00_detectors/'
+#title_str = 'Histgram of ISI (Structured ' + filename + ')'
 
 root_dir = '/home/kfujii2/newNEST2/iaf_model/data/'
 data = pickle.load(open(root_dir+dir_to_load+filename,'r'))
@@ -106,9 +106,14 @@ for i in range(0,num_neurons,1):
     states_all = states_all + states[i].astype(int).tolist()
 '''
 
-plt.hist(states_all)
-plt.title('states: 1 = Regular spiking, 2 = Bursting')
-plt.show()
+
+# count the number of states (i.e. D1)
+unique_states = np.vstack({tuple(row) for row in states})
+d1 = len(unique_states)
+
+#plt.hist(states_all)
+#plt.title('states: 1 = Regular spiking, 2 = Bursting')
+#plt.show()
 
 print('end')
 
