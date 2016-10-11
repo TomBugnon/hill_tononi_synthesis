@@ -18,6 +18,7 @@ from joblib import Parallel, delayed
 root_dir = '/home/leonardo/projects/nsdm/hill_tononi_synthesis/data'
 
 files_to_load = '/z_*_Vp*.pickle'
+#files_to_load = '/any_*_Vp*.pickle'
 
 all_files = glob.glob(root_dir + files_to_load)
 
@@ -30,8 +31,9 @@ def processInput(idx, next_file):
     with open(next_file, 'r') as ft:
         data = pickle.load(ft)
 
-    data_to_pci = data[::10,::10]
-    #data_to_pci = data
+    #data_to_pci = data[::10,::10]
+    #data_to_pci = np.array([1 * (np.any(data[x:x + 9, :], 0)) for x in range(0, data.shape[0], 10)])
+    data_to_pci = data
     data_c = pci.pci(data_to_pci)
 
     elapsed = time.time() - t
@@ -53,7 +55,7 @@ def processInput(idx, next_file):
 num_cores = 16
 results = Parallel(n_jobs=num_cores, verbose=100)(delayed(processInput)(fileid, next_file) for fileid, next_file in enumerate(all_files))
 
-output_file = 'results_pci_' + files_to_load.replace('*', '').replace('/', '')
+output_file = 'pci_' + files_to_load.replace('*', '').replace('/', '')
 
 with open(root_dir + '/' + output_file, 'w') as f:
     pickle.dump(results, f)

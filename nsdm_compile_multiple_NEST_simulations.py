@@ -25,8 +25,9 @@ def update_line(num, data, line):
 
 root_dir = '/home/leonardo/projects/nsdm/hill_tononi_synthesis/data'
 
-dir_to_load = '/sim_*_lambda_dg_-1.00*'
-#dir_to_load = '/sim_*_lambda_dg_2.00*'
+#dir_to_load = '/sim_*_lambda_dg_-1.00*'
+dir_to_load = '/sim_*_lambda_dg_2.00*'
+#dir_to_load = '/sim_*_lambda_dg_8.00*'
 
 files_to_load = '/spikes_Vp*L4*.pickle'
 #files_to_load = '/spikes_Retina*.pickle'
@@ -57,9 +58,14 @@ ntime = len(range(mint, maxt, mindiff)) + 1
 # some times do not have all the neurons active in the session, so round up
 nneurons = np.int64(np.ceil((max(sd) - min(sd) + 1)/100.)*100.)
 
+downsample_neuron = 0
+#downsample_neuron = 4
+#downsample_neuron = 16
+#nneurons = np.int64(nneurons/downsample_neuron)
+
 # TODO assume they all have the same size!
 
-ntime = 400
+ntime = 40
 
 _all_sim = np.zeros((nfolders,nfiles,nneurons,ntime))
 
@@ -81,19 +87,25 @@ for folder_idx, this_folder in enumerate(all_folders):
         sd = data['senders']
         ts = data['times']
 
-        ts = np.round(ts*10).astype('int')
+        #plt.plot(sd)
+        #plt.show()
+
+        #ts = np.round(ts*10).astype('int')
+        ts = np.round(ts).astype('int')
 
         mint = min(ts)
         maxt = max(ts)
         mindiff = min(np.diff(np.unique(ts)))
-        ntime = len(range(mint, maxt, mindiff)) + 1
+        #ntime = len(range(mint, maxt, mindiff)) + 1
 
-        ntime = 400
+        #ntime = 40
+        # ntime = 400
 
-        #neurons = 1600
+        neurons = 1600
         #nneurons = max(sd) - min(sd) + 1
         # some times do not have all the neurons active in the session, so round up
-        nneurons = np.int64(np.ceil((max(sd) - min(sd) + 1)/100.)*100.)
+        #nneurons = np.int64(np.ceil((max(sd) - min(sd) + 1)/100.)*100.)
+        #nneurons = np.int64(np.ceil((max(sd) - min(sd) + 1)/10.)*10.)
 
         this_neurons = np.zeros((nneurons, ntime))
         this_neurons[sd-min(sd), ts-mint] = 1.
@@ -102,17 +114,30 @@ for folder_idx, this_folder in enumerate(all_folders):
         #smoop = 10 # in samples!
         #this_neurons = 1 * (np.array([np.sum(this_neurons[:,t:t+smoop], 1) for t in range(0, ntime-smoop, smoop)]).T > 0)
 
+        if downsample_neuron > 0:
+            downsample = downsample_neuron
+            this_data = this_neurons
+            this_neurons = np.array([1 * (np.any(this_data[x:x + downsample-1, :], 0)) for x in range(0, this_data.shape[0], downsample)])
+
         _all_sim[folder_idx,files_idx,:,:] = this_neurons
 
         #_all_sim = zeros((nfiles,) + (nfolders,) + this_neurons.shape)
 
 results = dict()
+
+results['N'] = _all_sim.shape[0]
+
 results['mean'] = np.mean(_all_sim, 0)
-results['z'] = results['mean']/np.std(_all_sim,0)
+
+neural_std = np.std(_all_sim,0)
+neural_std_all = np.unique(neural_std.flatten())
+neural_std[neural_std == .0] = neural_std_all[1]
+results['z'] = results['mean']/neural_std
 results['t'] = stats.ttest_1samp(_all_sim, .5, axis=0).statistic
+results['any'] = np.any(_all_sim, 0)
 #np.mean((_all_sim - results['mean'])/(np.std(_all_sim,0)/np.sqrt(_all_sim.shape[0])),0)
 
-output_file = 'results_' + dir_to_load.replace('*', '').replace('/', '') + '_' + files_to_load.replace('*', '').replace('/', '')
+output_file = ('results_D%d' % downsample_neuron) + dir_to_load.replace('*', '').replace('/', '') + '_' + files_to_load.replace('*', '').replace('/', '')
 
 with open(root_dir + '/' + output_file, 'w') as f:
     pickle.dump(results, f)

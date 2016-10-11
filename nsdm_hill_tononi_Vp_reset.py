@@ -16,8 +16,7 @@
 # Authors: Leonardo Barbosa and Keiko Fujii
 # Date:    21 September 2016
 
-
-
+import os.path
 
 SHOW_FIGURES = False
 
@@ -44,11 +43,16 @@ from nest import raster_plot
 nest.ResetKernel()
 
 # set multi-thread on
-nest.SetKernelStatus({"local_num_threads": 16})
+N_vp = 16
+nest.SetKernelStatus({"local_num_threads": N_vp})
 
 # initialize random seed
 import time
-nest.SetKernelStatus({'grng_seed' : int(round(time.time() * 1000))})
+msd = int(round(time.time() * 1000))
+nest.SetKernelStatus({'grng_seed' : msd})
+nest.SetKernelStatus({'rng_seeds' : range(msd+N_vp+1, msd+2*N_vp+1)})
+
+
 
 # Other generic imports
 import math
@@ -66,6 +70,12 @@ import csv
 
 # Configurable Parameters
 # =======================
+
+
+# Number of simulations
+
+Nsim = 1
+
 #
 # Here we define those parameters that we take to be
 # configurable. The choice of configurable parameters is obviously
@@ -84,21 +94,18 @@ import csv
 #   can be visualized in those intervals. Times are in ms.
 Params = {'N'           :     40,
           'visSize'     :    8.0,
-          'f_dg'        :    0.0,
-          #'lambda_dg'   :    2.0, # spatial structure
-          'lambda_dg'   :   -1.0, # random: each pixel with random lambda_dg / phi_dg
+          'f_dg'        :   20.0,
+          'lambda_dg'   :    2.0, # spatial structure
+          #'lambda_dg'   :   -1.0, # random: each pixel with random lambda_dg / phi_dg
+          'bar'         :  False,
           'phi_dg'      :    0.0,
           'retDC'       :   30.0,
           'retAC'       :   30.0,
-          'simtime'     :   40.0,
-          'sim_interval':    2.0
+          'simtime'     : 100.0,
+          'sim_interval':    1.0,
+          'discardtime' : 100.0
           }
 
-# Set folder name from parameter names
-
-folder_name = "sim_%d_" % isim
-for p,v in Params.items():
-    folder_name += p + "_%.2f_" % v
 
 # Neuron Models
 # =============
@@ -223,12 +230,62 @@ def phaseInit(pos, lam, alpha):
     '''
     return 360.0 / lam * (math.cos(alpha) * pos[0] + math.sin(alpha) * pos[1])
 
-nest.CopyModel('sinusoidal_poisson_generator', 'RetinaNode',
-               params = {'amplitude': Params['retAC'],
-                         'rate'     : Params['retDC'] + 30 * np.random.rand(),
-                         'frequency': Params['f_dg'],
-                         'phase'    : 0.0,
-                         'individual_spike_trains': True})
+def barInit(pos, w, a, s):
+    '''Initializer function for the rate of a fixed bar
+
+       pos  : position (x,y) of node, in degree
+       lam  : width of the bar, in degree
+       alpha: angle of the bar in radian, zero is horizontal
+       vsize: size of the visual field, bar will be in the center
+
+       Returns 0 if outside the bar, 1 otherwise
+    '''
+
+    max = w * (s*math.cos(a) + s*math.sin(a))
+    inibar = -(w/s/2)
+    endbar = +(w/s/2)
+
+    x = pos[0]
+    y = pos[1]
+    A = w * (x*math.cos(a) + y*math.sin(a)) / max
+    ok = (A > inibar) & (A < endbar)
+
+    return 1*ok
+
+def phaseBarInit(pos, w, a, s):
+
+    max = w * (s*math.cos(a) + s*math.sin(a))
+    inibar = -(w/s/2)
+    endbar = +(w/s/2)
+
+    x = pos[0]
+    y = pos[1]
+    phase = w * (x*math.cos(a) + y*math.sin(a))
+    A = phase / max
+    ok = (A > inibar) & (A < endbar)
+
+    if ok:
+        return 360.0 / phase
+    else:
+        return 702.0
+
+if Params['bar']:
+    nest.CopyModel('poisson_generator', 'RetinaNode',
+                   params = {'rate'     : 0.0})
+else:
+    nest.CopyModel('sinusoidal_poisson_generator', 'RetinaNode',
+                   params = {'amplitude': Params['retAC'],
+                             'rate'     : Params['retDC'],
+                             'frequency': Params['f_dg'],
+                             'phase'    : 0.0,
+                             'individual_spike_trains': True})
+
+#nest.CopyModel('sinusoidal_poisson_generator', 'RetinaNode',
+#               params = {'amplitude': Params['retAC'],
+#                         'rate'     : Params['retDC'],
+#                         'frequency': Params['f_dg'],
+#                         'phase'    : 0.0,
+#                         'individual_spike_trains': True})
 
 # Recording nodes
 # ---------------
@@ -270,25 +327,63 @@ layerProps = {'rows'     : Params['N'],
 
 # Retina
 # ------
+
+
 layerProps.update({'elements': 'RetinaNode'})
 retina = topo.CreateLayer(layerProps)
 
 # Original: Gabor retina input
 
-if Params['lambda_dg'] >= 0:
-    # Now set phases of retinal oscillators; we use a list comprehension instead
-    # of a loop.
-    [nest.SetStatus([n], {"phase": phaseInit(topo.GetPosition([n])[0],
-                                         Params["lambda_dg"],
-                                         Params["phi_dg"])})
-    for n in nest.GetLeaves(retina)[0]]
-else:
-    # Leonardo: Random retina input
+if Params['bar']:
+    if Params['lambda_dg'] >= 0:
+        ## Now set phases of retinal oscillators; we use a list comprehension instead
+        ## of a loop.
+        #tmp = [Params['retDC'] * barInit(topo.GetPosition([n])[0],Params["lambda_dg"], Params["phi_dg"],Params["visSize"])
+        #       for n in nest.GetLeaves(retina)[0]]
+        #screen = np.array(tmp).reshape(Params['N'], Params['N'])
+        #plt.imshow(screen)
+        #plt.show()
 
-    [nest.SetStatus([n], {"phase": phaseInit(topo.GetPosition([n])[0],
-                                         np.pi * np.random.rand(),
-                                         np.pi * np.random.rand())})
-    for n in nest.GetLeaves(retina)[0]]
+        [nest.SetStatus([n], {"rate": Params['retDC'] * barInit(topo.GetPosition([n])[0], Params["lambda_dg"], Params["phi_dg"],Params["visSize"])})
+                for n in nest.GetLeaves(retina)[0]]
+
+        #tmp = [phaseInit(topo.GetPosition([n])[0],Params["lambda_dg"], Params["phi_dg"])
+        #       for n in nest.GetLeaves(retina)[0]]
+        #screen = np.array(tmp).reshape(Params['N'], Params['N'])
+        #plt.imshow(screen)
+        #plt.colorbar()
+        #plt.show()
+
+        #[nest.SetStatus([n], {"phase": phaseInit(topo.GetPosition([n])[0],
+        #                                     Params["lambda_dg"],
+        #                                     Params["phi_dg"])})
+        #for n in nest.GetLeaves(retina)[0]]
+        #[nest.SetStatus([n], {"amplitude": 0.0 * barInit(topo.GetPosition([n])[0],
+        #                                       Params["lambda_dg"],
+        #                                       Params["phi_dg"],
+        #                                       Params["visSize"])})
+        #for n in nest.GetLeaves(retina)[0]]
+
+        #[nest.SetStatus([n], {"phase": phaseBarInit(topo.GetPosition([n])[0],
+        #                                       Params["lambda_dg"],
+        #                                       Params["phi_dg"],
+        #                                       Params["visSize"])})
+        #for n in nest.GetLeaves(retina)[0]]
+else:
+    if Params['lambda_dg'] >= 0:
+        # Now set phases of retinal oscillators; we use a list comprehension instead
+        # of a loop.
+        [nest.SetStatus([n], {"phase": phaseInit(topo.GetPosition([n])[0],
+                                             Params["lambda_dg"],
+                                             Params["phi_dg"])})
+        for n in nest.GetLeaves(retina)[0]]
+    else:
+        # Leonardo: Random retina input
+
+        [nest.SetStatus([n], {"phase": phaseInit(topo.GetPosition([n])[0],
+                                             np.pi * np.random.rand(),
+                                             np.pi * np.random.rand())})
+        for n in nest.GetLeaves(retina)[0]]
 
 # Thalamus
 # --------
@@ -416,6 +511,17 @@ ccxConnections = []
 # and all cortico-thalamic connections in
 ctConnections = []
 
+# spread of connections
+horIntraCtxExRadius = 12.0
+horIntraCtxExRadiusL4 = 7.0
+verIntraCtxExRadius = 2.0
+allIntraInhRadius = 7.0
+
+allCtxTalRadius = 5.0
+horCtxTalRecBig = 4.0
+horCtxTalRecSmall = 1.0
+difTalCtxRadius = 5.0
+
 # Horizontal intralaminar
 # -----------------------
 # *Note:* "Horizontal" means "within the same cortical layer" in this
@@ -426,7 +532,7 @@ ctConnections = []
 # we adapt those values that need adapting, and
 horIntraBase = {"connection_type": "divergent",
                 "synapse_model": "AMPA",
-                "mask": {"circular": {"radius": 12.0 * dpc}},
+                "mask": {"circular": {"radius": horIntraCtxExRadius * dpc}},
                 "kernel": {"gaussian": {"p_center": 0.05, "sigma": 7.5 * dpc}},
                 "weights": 1.0,
                 "delays": {"uniform": {"min": 1.75, "max": 2.25}}}
@@ -436,9 +542,9 @@ horIntraBase = {"connection_type": "divergent",
 for conn in [{"sources": {"model": "L23pyr"}, "targets": {"model": "L23pyr"}},
              {"sources": {"model": "L23pyr"}, "targets": {"model": "L23in" }},
              {"sources": {"model": "L4pyr" }, "targets": {"model": "L4pyr" },
-              "mask"   : {"circular": {"radius": 7.0 * dpc}}},
+              "mask"   : {"circular": {"radius": horIntraCtxExRadiusL4 * dpc}}},
              {"sources": {"model": "L4pyr" }, "targets": {"model": "L4in"  },
-              "mask"   : {"circular": {"radius": 7.0 * dpc}}},
+              "mask"   : {"circular": {"radius": horIntraCtxExRadiusL4 * dpc}}},
              {"sources": {"model": "L56pyr"}, "targets": {"model": "L56pyr" }},
              {"sources": {"model": "L56pyr"}, "targets": {"model": "L56in"  }}]:
     ndict = horIntraBase.copy()
@@ -453,7 +559,7 @@ for conn in [{"sources": {"model": "L23pyr"}, "targets": {"model": "L23pyr"}},
 # We proceed as above.
 verIntraBase = {"connection_type": "divergent",
                 "synapse_model": "AMPA",
-                "mask": {"circular": {"radius": 2.0 * dpc}},
+                "mask": {"circular": {"radius": verIntraCtxExRadius * dpc}},
                 "kernel": {"gaussian": {"p_center": 1.0, "sigma": 7.5 * dpc}},
                 "weights": 2.0,
                 "delays": {"uniform": {"min": 1.75, "max": 2.25}}}
@@ -484,7 +590,7 @@ for conn in [{"sources": {"model": "L23pyr"}, "targets": {"model": "L56pyr"}, "w
 # the connections inhibitory.
 intraInhBase = {"connection_type": "divergent",
                 "synapse_model": "GABA_A",
-                "mask": {"circular": {"radius": 7.0 * dpc}},
+                "mask": {"circular": {"radius": allIntraInhRadius * dpc}},
                 "kernel": {"gaussian": {"p_center": 0.25, "sigma": 7.5 * dpc}},
                 "weights": -2.0,
                 "delays": {"uniform": {"min": 1.75, "max": 2.25}}}
@@ -506,7 +612,7 @@ for conn in [{"sources": {"model": "L23in"}, "targets": {"model": "L23pyr"}},
 # ---------------
 corThalBase = {"connection_type": "divergent",
                "synapse_model": "AMPA",
-               "mask": {"circular": {"radius": 5.0 * dpc}},
+               "mask": {"circular": {"radius": allCtxTalRadius * dpc}},
                "kernel": {"gaussian": {"p_center": 0.5, "sigma": 7.5 * dpc}},
                "weights": 1.0,
                "delays": {"uniform": {"min": 7.5, "max": 8.5}}}
@@ -569,16 +675,16 @@ thalCorRect = {"connection_type": "convergent",
 print("Connecting: thalamo-cortical")
 
 # Horizontally tuned
-thalCorRect.update({"mask": {"rectangular": {"lower_left" : [-4.0*dpc, -1.0*dpc],
-                                             "upper_right": [ 4.0*dpc,  1.0*dpc]}}})
+thalCorRect.update({"mask": {"rectangular": {"lower_left" : [-horCtxTalRecBig*dpc, -horCtxTalRecSmall*dpc],
+                                             "upper_right": [ horCtxTalRecBig*dpc,  horCtxTalRecSmall*dpc]}}})
 for conn in [{"targets": {"model": "L4pyr" }, "kernel": 0.5},
              {"targets": {"model": "L56pyr"}, "kernel": 0.3}]:
     thalCorRect.update(conn)
     topo.ConnectLayers(Tp, Vp_h, thalCorRect)
 
 # Vertically tuned
-thalCorRect.update({"mask": {"rectangular": {"lower_left" : [-1.0*dpc, -4.0*dpc],
-                                             "upper_right": [ 1.0*dpc,  4.0*dpc]}}})
+thalCorRect.update({"mask": {"rectangular": {"lower_left" : [-horCtxTalRecSmall*dpc, -horCtxTalRecBig*dpc],
+                                             "upper_right": [ horCtxTalRecSmall*dpc,  horCtxTalRecBig*dpc]}}})
 for conn in [{"targets": {"model": "L4pyr" }, "kernel": 0.5},
              {"targets": {"model": "L56pyr"}, "kernel": 0.3}]:
     thalCorRect.update(conn)
@@ -589,7 +695,7 @@ thalCorDiff = {"connection_type": "convergent",
                "sources": {"model": "TpRelay"},
                "synapse_model": "AMPA",
                "weights": 5.0,
-               "mask": {"circular": {"radius": 5.0 * dpc}},
+               "mask": {"circular": {"radius": difTalCtxRadius * dpc}},
                "kernel": {"gaussian": {"p_center": 0.1, "sigma": 7.5 * dpc}},
                "delays": {"uniform": {"min": 2.75, "max": 3.25}}}
 
@@ -623,37 +729,43 @@ thalBase = {"connection_type": "divergent",
 
 print("Connecting: intra-thalamic")
 
+allTalRetEx = 2.0
+allTalTalIntRelInh = 2.0
+allTalTalIntIntInh = 2.0
+
+allRpTp = 12.0
+
 for src, tgt, conn in [(Tp, Rp, {"sources": {"model": "TpRelay"},
                                  "synapse_model": "AMPA",
-                                 "mask": {"circular": {"radius": 2.0 * dpc}},
+                                 "mask": {"circular": {"radius": allTalRetEx * dpc}},
                                  "kernel": {"gaussian": {"p_center": 1.0, "sigma": 7.5 * dpc}},
                                  "weights": 2.0}),
                        (Tp, Tp, {"sources": {"model": "TpInter"},
                                  "targets": {"model": "TpRelay"},
                                  "synapse_model": "GABA_A",
                                  "weights": -1.0,
-                                 "mask": {"circular": {"radius": 2.0 * dpc}},
+                                 "mask": {"circular": {"radius":  allTalTalIntRelInh * dpc}},
                                  "kernel": {"gaussian": {"p_center": 0.25, "sigma": 7.5 * dpc}}}),
                        (Tp, Tp, {"sources": {"model": "TpInter"},
                                  "targets": {"model": "TpInter"},
                                  "synapse_model": "GABA_A",
                                  "weights": -1.0,
-                                 "mask": {"circular": {"radius": 2.0 * dpc}},
+                                 "mask": {"circular": {"radius": allTalTalIntIntInh * dpc}},
                                  "kernel": {"gaussian": {"p_center": 0.25, "sigma": 7.5 * dpc}}}),
                        (Rp, Tp, {"targets": {"model": "TpRelay"},
                                  "synapse_model": "GABA_A",
                                  "weights": -1.0,
-                                 "mask": {"circular": {"radius": 12.0 * dpc}},
+                                 "mask": {"circular": {"radius": allRpTp * dpc}},
                                  "kernel": {"gaussian": {"p_center": 0.15, "sigma": 7.5 * dpc}}}),
                        (Rp, Tp, {"targets": {"model": "TpInter"},
                                  "synapse_model": "GABA_A",
                                  "weights": -1.0,
-                                 "mask": {"circular": {"radius": 12.0 * dpc}},
+                                 "mask": {"circular": {"radius": allRpTp * dpc}},
                                  "kernel": {"gaussian": {"p_center": 0.15, "sigma": 7.5 * dpc}}}),
                        (Rp, Rp, {"targets": {"model": "RpNeuron"},
                                  "synapse_model": "GABA_A",
                                  "weights": -1.0,
-                                 "mask": {"circular": {"radius": 12.0 * dpc}},
+                                 "mask": {"circular": {"radius": allRpTp * dpc}},
                                  "kernel": {"gaussian": {"p_center": 0.5, "sigma": 7.5 * dpc}}})]:
     thalBase.update(conn)
     topo.ConnectLayers(src, tgt, thalBase)
@@ -701,23 +813,51 @@ for conn in [{"targets": {"model": "TpRelay"}},
 #pylab.title('Connections TpRelay -> Vp(v) L4pyr')
 #pylab.show()
 
-# Recording devices
-# =================
 
-    # This recording device setup is a bit makeshift. For each population
-    # we want to record from, we create one ``multimeter``, then select
-    # all nodes of the right model from the target population and
-    # connect. ``loc`` is the subplot location for the layer.
+
+# [n for n in nest.GetLeaves(retina)[0]]
+
+tini = time.time()
+
+for isim in range(1,Nsim+1,1):
+
+    nest.ResetNetwork()
+    msd = int(round(time.time() * 1000))
+    nest.SetKernelStatus({'grng_seed' : msd})
+    nest.SetKernelStatus({'rng_seeds' : range(msd+N_vp+1, msd+2*N_vp+1)})
+    nest.SetStatus([0], {"time": 0.0})
+
+    # Set folder name from parameter names
+    folder_name = "sim_%d_" % isim
+    for p,v in Params.items():
+        folder_name += p + "_%.2f_" % v
+
+    # Example simulation
+    # ====================
+
+    # This simulation is set up to create a step-wise visualization of
+    # the membrane potential. To do so, we simulate ``sim_interval``
+    # milliseconds at a time, then read out data from the multimeters,
+    # clear data from the multimeters and plot the data as pseudocolor
+    # plots.
+
+    # show time during simulation
+    nest.SetStatus([0],{'print_time': True})
+
+    # first run the network for a while until it stabilises
+    nest.Simulate(Params['discardtime'])
+
+    # then connect the recorders
     print("Connecting: Recording devices")
     recorders = {}
-    for name, loc, population, model in [('TpRelay'   , 1, Tp  , 'TpRelay'),
-                                         ('Rp'        , 2, Rp  , 'RpNeuron'),
+    for name, loc, population, model in [('TpRelay', 1, Tp, 'TpRelay'),
+                                         ('Rp', 2, Rp, 'RpNeuron'),
                                          ('Vp_v L4pyr', 3, Vp_v, 'L4pyr'),
                                          ('Vp_h L4pyr', 4, Vp_h, 'L4pyr')]:
         recorders[name] = (nest.Create('RecordingNode'), loc)
         tgts = [nd for nd in nest.GetLeaves(population)[0]
-                if nest.GetStatus([nd], 'model')[0]==model]
-        nest.Connect(recorders[name][0], tgts)   # one recorder to all targets
+                if nest.GetStatus([nd], 'model')[0] == model]
+        nest.Connect(recorders[name][0], tgts)  # one recorder to all targets
 
     # create the spike detectors
     detectors = {}
@@ -731,7 +871,7 @@ for conn in [{"targets": {"model": "TpRelay"}},
                                     ('Rp', Rp, 'RpNeuron'),
                                     ('Retina', retina, 'RetinaNode')]:
         tgts = [nd for nd in nest.GetLeaves(population)[0]
-                if nest.GetStatus([nd], 'model')[0]==model]
+                if nest.GetStatus([nd], 'model')[0] == model]
         detectors[name] = (nest.Create('spike_detector', params={"withgid": True, "withtime": True}), loc)
         print(name + ' : %d' % max(tgts))
 
@@ -745,28 +885,9 @@ for conn in [{"targets": {"model": "TpRelay"}},
         else:
             nest.Connect(tgts, detectors[name][0])
 
-
-    # [n for n in nest.GetLeaves(retina)[0]]
-
-
-for isim in range(1,201,1):
-    # Example simulation
-    # ====================
-
-    # This simulation is set up to create a step-wise visualization of
-    # the membrane potential. To do so, we simulate ``sim_interval``
-    # milliseconds at a time, then read out data from the multimeters,
-    # clear data from the multimeters and plot the data as pseudocolor
-    # plots.
-
-    # show time during simulation
-    nest.SetStatus([0],{'print_time': True})
-
     #TODO check difference with respect to running each step at a time
-    # run simulation
+    # and run the simulation
     nest.Simulate(Params['simtime'])
-
-    import os.path
 
     data_folder = './data/' + folder_name + 'detectors'
     if not os.path.isdir(data_folder):
@@ -796,6 +917,9 @@ for isim in range(1,201,1):
 
         scipy.io.savemat(data_folder + '/spikes_' + name + '.mat', mdict={'senders': spikes['senders'], 'times': spikes['times']})
 
+        # clear data from spike detectors
+        nest.SetStatus(rec, {'n_events': 0})
+
         plt.close()
 
     # just for some information at the end
@@ -804,3 +928,7 @@ for isim in range(1,201,1):
     #--- keiko 9/14/2016
     #f_Vm.close()
     #f_idx.close()
+
+elapsed = time.time() - tini
+m = "Elapsed time : %.2f s" % elapsed
+print(m)
