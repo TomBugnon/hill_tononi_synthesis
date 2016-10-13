@@ -208,7 +208,7 @@ Params = {'N'           :     40,
           'phi_dg'      :    0.0,
           'retDC'       :   30.0,
           'retAC'       :   30.0,
-          'simtime'     :  200.0,
+          'simtime'     :   10.0,
           'sim_interval':    1.0
           }
 
@@ -358,7 +358,7 @@ nest.CopyModel('multimeter', 'RecordingNode',
                          'record_from': ['V_m'],
                          'record_to'  : ['memory'],
                          'withgid'    : True,
-                         'withtime'   : False})
+                         'withtime'   : True})
 
 
 #! Populations
@@ -858,8 +858,8 @@ vmx=[-50,-50,-50,-50]
 
 
 # do the simulation
+# nest.Simulate(Params['sim_interval'])
 nest.Simulate(Params['simtime'])
-
 
 # Compare recorders and detectors
 #--- Get TpRelay info. from recorders
@@ -879,8 +879,12 @@ nest.Simulate(Params['simtime'])
 # Preparations to save data
 #--- Make a folder to save experimental data
 #--- folder name represents input parameters
-experimetal_info = 'f_%f_lambda_%f_phi_%f_interval_%f' % (Params['f_dg'], Params['lambda_dg'], Params['phi_dg'], Params['sim_interval'])
-dirname = './results/'+experimetal_info+'/'
+experimetal_info = 'f_%f_lambda_%f_phi_%f_simtime_%f_interval_%f' % (Params['f_dg'],
+                                                                     Params['lambda_dg'],
+                                                                     Params['phi_dg'],
+                                                                     Params['simtime'],
+                                                                     Params['sim_interval'])
+dirname = './results_0922/' + experimetal_info + '/'
 os.mkdir(dirname)
 
 filename_TpRelay = dirname + 'TpRelay'
@@ -890,47 +894,60 @@ filename_Vp_h_L4pyr  = dirname + 'Vp_h_L4pyr'
 filename_Vp_v_L23pyr = dirname + 'Vp_v_L23pyr'
 filename_Vp_v_L4pyr  = dirname + 'Vp_v_L4pyr'
 
-filename_Vp_v_L23pyr_membrane = filename_Vp_v_L23pyr + '_membrane'
-filename_Vp_h_L23pyr_membrane = filename_Vp_h_L23pyr + '_membrane'
-
-# Save spike data
+# Save spike data with pickle format
 for name, r in detectors.items():
 
     rec = r[0]
     senders = nest.GetStatus(rec)[0]['events']['senders']
     times = nest.GetStatus(rec)[0]['events']['times']
 
-    senders = pylab.reshape(senders, (len(senders), 1))
-    times = pylab.reshape(times, (len(times), 1))
-    firing_data = []
-    firing_data = np.hstack((times, senders))
+    #--- reshape and connect data
+    times_column = pylab.reshape(times,(len(times),1))
+    senders_column = pylab.reshape(senders,(len(senders),1))
+    spike_data = []
+    spike_data = np.hstack( (times_column, senders_column) )
 
     if name == 'TpRelay':
-        pickle.dump(firing_data, open(filename_TpRelay+'.p','w'))
+        pickle.dump(spike_data, open(filename_TpRelay+'_spike.p','w'))
     elif name == 'Rp':
-        pickle.dump(firing_data, open(filename_Rp+'.p','w'))
+        pickle.dump(spike_data, open(filename_Rp+'_spike.p','w'))
     elif name == 'Vp_h L23pyr':
-        pickle.dump(firing_data, open(filename_Vp_h_L23pyr+'.p','w'))
+        pickle.dump(spike_data, open(filename_Vp_h_L23pyr+'_spike.p','w'))
     elif name == 'Vp_h L4pyr':
-        pickle.dump(firing_data, open(filename_Vp_h_L4pyr+'.p','w'))
+        pickle.dump(spike_data, open(filename_Vp_h_L4pyr+'_spike.p','w'))
     elif name == 'Vp_v L23pyr':
-        pickle.dump(firing_data, open(filename_Vp_v_L23pyr+'.p','w'))
+        pickle.dump(spike_data, open(filename_Vp_v_L23pyr+'_spike.p','w'))
     elif name == 'Vp_v L4pyr':
-        pickle.dump(firing_data, open(filename_Vp_v_L4pyr + '.p','w'))
+        pickle.dump(spike_data, open(filename_Vp_v_L4pyr + '_spike.p','w'))
     else:
         print(name)
 
 
-# Save membrane potentials
+# Save membrane potentials with pickle format
 for name, r in recorders.items():
 
     rec = r[0]
+    times = nest.GetStatus(rec)[0]['events']['times']
+    senders = nest.GetStatus(rec)[0]['events']['senders']
     V_m = nest.GetStatus(rec)[0]['events']['V_m']
 
+    #--- change V_m shape: (1,nstep*nneuron) -> (nstep,nneuron)
+    # V_m_tmp = nest.GetStatus(rec)[0]['events']['V_m']
+    # nstep = Params['simtime'] - 1
+    # nneuron = int( len(V_m_tmp) / nstep )
+    # V_m = pylab.reshape(V_m_tmp, (nstep,nneuron))
+
+    #--- reshape and connect data
+    times_column = pylab.reshape(times,(len(times),1))
+    senders_column = pylab.reshape(senders,(len(senders),1))
+    V_m_column = pylab.reshape(V_m,(len(V_m),1))
+    membrane_data = []
+    membrane_data = np.hstack( (times_column, senders_column, V_m_column) )
+
     if name == 'Vp_h L23pyr':
-        pickle.dump(V_m, open(filename_Vp_h_L23pyr_membrane+'.p','w'))
+        pickle.dump(membrane_data, open(filename_Vp_h_L23pyr+'_membrane.p','w'))
     elif name == 'Vp_v L23pyr':
-        pickle.dump(V_m, open(filename_Vp_v_L23pyr_membrane+'.p','w'))
+        pickle.dump(membrane_data, open(filename_Vp_v_L23pyr+'_membrane.p','w'))
 
 
 
@@ -944,30 +961,30 @@ for name, r in recorders.items():
 # Open pickle file and save to mat file
 
 #--- Spikes
-TpRelay = pickle.load(open(filename_TpRelay+'.p','r'))
-scipy.io.savemat(filename_TpRelay+'.mat',mdict={'TpRelay':TpRelay})
+TpRelay_spike = pickle.load(open(filename_TpRelay+'_spike.p','r'))
+scipy.io.savemat(filename_TpRelay+'_spike.mat',mdict={'TpRelay_spike':TpRelay_spike})
 
-Rp = pickle.load(open(filename_Rp+'.p','r'))
-scipy.io.savemat(filename_Rp+'.mat',mdict={'Rp':Rp})
+Rp_spike = pickle.load(open(filename_Rp+'_spike.p','r'))
+scipy.io.savemat(filename_Rp+'_spike.mat',mdict={'Rp_spike':Rp_spike})
 
-Vp_h_L23pyr = pickle.load(open(filename_Vp_h_L23pyr+'.p','r'))
-scipy.io.savemat(filename_Vp_h_L23pyr+'.mat',mdict={'Vp_h_L23pyr':Vp_h_L23pyr})
+Vp_h_L23pyr_spike = pickle.load(open(filename_Vp_h_L23pyr+'_spike.p','r'))
+scipy.io.savemat(filename_Vp_h_L23pyr+'_spike.mat',mdict={'Vp_h_L23pyr_spike':Vp_h_L23pyr_spike})
 
-Vp_h_L4pyr = pickle.load(open(filename_Vp_h_L4pyr+'.p','r'))
-scipy.io.savemat(filename_Vp_h_L4pyr+'.mat',mdict={'Vp_h_L4pyr':Vp_h_L4pyr})
+Vp_h_L4pyr_spike = pickle.load(open(filename_Vp_h_L4pyr+'_spike.p','r'))
+scipy.io.savemat(filename_Vp_h_L4pyr+'_spike.mat',mdict={'Vp_h_L4pyr_spike':Vp_h_L4pyr_spike})
 
-Vp_v_L23pyr = pickle.load(open(filename_Vp_v_L23pyr+'.p','r'))
-scipy.io.savemat(filename_Vp_v_L23pyr+'.mat',mdict={'Vp_v_L23pyr':Vp_v_L23pyr})
+Vp_v_L23pyr_spike = pickle.load(open(filename_Vp_v_L23pyr+'_spike.p','r'))
+scipy.io.savemat(filename_Vp_v_L23pyr+'_spike.mat',mdict={'Vp_v_L23pyr_spike':Vp_v_L23pyr_spike})
 
-Vp_v_L4pyr = pickle.load(open(filename_Vp_v_L4pyr+'.p','r'))
-scipy.io.savemat(filename_Vp_v_L4pyr+'.mat',mdict={'Vp_v_L4pyr':Vp_v_L4pyr})
+Vp_v_L4pyr_spike = pickle.load(open(filename_Vp_v_L4pyr+'_spike.p','r'))
+scipy.io.savemat(filename_Vp_v_L4pyr+'_spike.mat',mdict={'Vp_v_L4pyr_spike':Vp_v_L4pyr_spike})
 
 #--- Membrane potentials
-Vp_h_L23pyr_Vm = pickle.load(open(filename_Vp_h_L23pyr_membrane+'.p','r'))
-scipy.io.savemat(filename_Vp_h_L23pyr_membrane+'.mat',mdict={'Vp_h_L23pyr_Vm':Vp_h_L23pyr_Vm})
+Vp_h_L23pyr_membrane = pickle.load(open(filename_Vp_h_L23pyr+'_membrane.p','r'))
+scipy.io.savemat(filename_Vp_h_L23pyr+'_membrane.mat',mdict={'Vp_h_L23pyr_membrane':Vp_h_L23pyr_membrane})
 
-Vp_v_L23pyr_Vm = pickle.load(open(filename_Vp_v_L23pyr_membrane+'.p','r'))
-scipy.io.savemat(filename_Vp_v_L23pyr_membrane+'.mat',mdict={'Vp_v_L23pyr_Vm':Vp_v_L23pyr_Vm})
+Vp_v_L23pyr_membrane = pickle.load(open(filename_Vp_v_L23pyr+'_membrane.p','r'))
+scipy.io.savemat(filename_Vp_v_L23pyr+'_membrane.mat',mdict={'Vp_v_L23pyr_membrane':Vp_v_L23pyr_membrane})
 
 
 

@@ -88,7 +88,7 @@ for isim in range(1, Nsim+1, 1):
               'phi_dg'      :    0.0,
               'retDC'       :   30.0,
               'retAC'       :   30.0,
-              'simtime'     : 2000.0,
+              'simtime'     :  700.0,
               'sim_interval':    2.0
               }
 
@@ -109,10 +109,10 @@ for isim in range(1, Nsim+1, 1):
                            "spike_duration": 2.0,
                            "Tau_spike": 1.75,
                            "Tau_m": 16.0,
-                           "AMPA_g_peak": 0.05,
+                           "AMPA_g_peak": 0.0375,
                            "NMDA_g_peak": 0.0375,
                            "GABA_A_g_peak": 0.165,
-                           "GABA_B_g_peak": 0.0066})
+                           "GABA_B_g_peak": 0.01})
                            #"AMPA_g_peak":0.05,
                            #"NMDA_g_peak":0.03,
                            #"GABA_A_g_peak":0.15})
@@ -123,10 +123,10 @@ for isim in range(1, Nsim+1, 1):
                            "spike_duration": 1.0,
                            "Tau_spike": 0.5,
                            "Tau_m": 8.0,
-                           "AMPA_g_peak": 0.05,
+                           "AMPA_g_peak": 0.0375,
                            "NMDA_g_peak": 0.0375,
                            "GABA_A_g_peak": 0.165,
-                           "GABA_B_g_peak": 0.0066})
+                           "GABA_B_g_peak": 0.01})
                            #"AMPA_g_peak":0.05,
                            #"NMDA_g_peak":0.03,
                            #"GABA_A_g_peak":0.15})
@@ -137,10 +137,10 @@ for isim in range(1, Nsim+1, 1):
                            "spike_duration": 1.0,
                            "Tau_spike": 0.75,
                            "Tau_m": 8.0,
-                           "AMPA_g_peak": 0.05,
+                           "AMPA_g_peak": 0.0375,
                            "NMDA_g_peak": 0.0375,
                            "GABA_A_g_peak": 0.165,
-                           "GABA_B_g_peak": 0.0066})
+                           "GABA_B_g_peak": 0.1})
                            #"AMPA_g_peak":0.05,
                            #"NMDA_g_peak":0.03,
                            #"GABA_A_g_peak":0.15})
@@ -622,7 +622,12 @@ for isim in range(1, Nsim+1, 1):
                                          ('Vp_v L4in' , 5, Vp_v, 'L4in'),
                                          ('Vp_h L4in' , 6, Vp_h, 'L4in'),
                                          ('TpInter'   , 7, Tp  , 'TpInter'),
-                                         ('Vp_v L23in', 8, Vp_v, 'L23in')]:
+                                         ('Vp_v L23in', 8, Vp_v, 'L23in'),
+                                         ('Vp_h L23in', 9, Vp_h, 'L23in'),
+                                         ('Vp_v L23pyr',10, Vp_v, 'L23pyr'),
+                                         ('Vp_h L23pyr',11, Vp_h, 'L23pyr'),
+                                         ('Vp_v L56pyr',12, Vp_v, 'L56pyr'),
+                                         ('Vp_h L56pyr',13, Vp_h, 'L56pyr')]:
         recorders[name] = (nest.Create('RecordingNode'), loc)
         tgts = [nd for nd in nest.GetLeaves(population)[0]
                 if nest.GetStatus([nd], 'model')[0]==model]
