@@ -17,8 +17,8 @@
 # Date:    21 September 2016
 
 # keiko
-import sys
-sys.path.append('/usr/lib/python2.7/dist-packages')
+#import sys
+#sys.path.append('/usr/lib/python2.7/dist-packages')
 
 
 Nsim = 1
@@ -49,7 +49,7 @@ for isim in range(1, Nsim+1, 1):
     nest.ResetKernel()
 
     # set multi-thread on
-    nest.SetKernelStatus({"local_num_threads": 24})
+    nest.SetKernelStatus({"local_num_threads": 16})
 
     # initialize random seed
     import time
@@ -83,8 +83,8 @@ for isim in range(1, Nsim+1, 1):
     Params = {'N'           :     40,
               'visSize'     :    8.0,
               'f_dg'        :   20.0,
-              #'lambda_dg'   :    2.0, # spatial structure
-              'lambda_dg'   :   -1.0, # random: each pixel with random lambda_dg / phi_dg
+              'lambda_dg'   :    2.0, # spatial structure
+              #'lambda_dg'   :   -1.0, # random: each pixel with random lambda_dg / phi_dg
               'phi_dg'      :    0.0,
               'retDC'       :   30.0,
               'retAC'       :   30.0,
@@ -109,10 +109,13 @@ for isim in range(1, Nsim+1, 1):
                            "spike_duration": 2.0,
                            "Tau_spike": 1.75,
                            "Tau_m": 16.0,
-                           "AMPA_g_peak": 0.0375,
+                           #"AMPA_g_peak": 0.0375,
+                           "AMPA_g_peak": 0.05,
                            "NMDA_g_peak": 0.0375,
-                           "GABA_A_g_peak": 0.165,
-                           "GABA_B_g_peak": 0.01})
+                           #"GABA_A_g_peak": 0.165,
+                           "GABA_A_g_peak": 0.15,
+                           #"GABA_B_g_peak": 0.01})
+                           "GABA_B_g_peak": 0.0132})
                            #"AMPA_g_peak":0.05,
                            #"NMDA_g_peak":0.03,
                            #"GABA_A_g_peak":0.15})
@@ -123,10 +126,13 @@ for isim in range(1, Nsim+1, 1):
                            "spike_duration": 1.0,
                            "Tau_spike": 0.5,
                            "Tau_m": 8.0,
-                           "AMPA_g_peak": 0.0375,
+                           #"AMPA_g_peak": 0.0375,
+                           "AMPA_g_peak": 0.05,
                            "NMDA_g_peak": 0.0375,
-                           "GABA_A_g_peak": 0.165,
-                           "GABA_B_g_peak": 0.01})
+                           #"GABA_A_g_peak": 0.165,
+                           "GABA_A_g_peak": 0.15,
+                           "GABA_B_g_peak": 0.0132})
+                           #"GABA_B_g_peak": 0.01})
                            #"AMPA_g_peak":0.05,
                            #"NMDA_g_peak":0.03,
                            #"GABA_A_g_peak":0.15})
@@ -137,10 +143,13 @@ for isim in range(1, Nsim+1, 1):
                            "spike_duration": 1.0,
                            "Tau_spike": 0.75,
                            "Tau_m": 8.0,
-                           "AMPA_g_peak": 0.0375,
+                           #"AMPA_g_peak": 0.0375,
+                           "AMPA_g_peak": 0.05,
                            "NMDA_g_peak": 0.0375,
-                           "GABA_A_g_peak": 0.165,
-                           "GABA_B_g_peak": 0.1})
+                           #"GABA_A_g_peak": 0.165,
+                           "GABA_A_g_peak": 0.15,
+                           #"GABA_B_g_peak": 0.1})
+                           "GABA_B_g_peak": 0.0132})
                            #"AMPA_g_peak":0.05,
                            #"NMDA_g_peak":0.03,
                            #"GABA_A_g_peak":0.15})
@@ -345,7 +354,7 @@ for isim in range(1, Nsim+1, 1):
 
     # We use a loop to do the for for us. The loop runs over a list of
     # dictionaries with all values that need updating
-    for conn in [{"sources": {"model": "L23pyr"}, "targets": {"model": "L23pyr"}, "synapse_model": "NMDA"},
+    for conn in [#{"sources": {"model": "L23pyr"}, "targets": {"model": "L23pyr"}, "synapse_model": "NMDA"},
                  {"sources": {"model": "L23pyr"}, "targets": {"model": "L23pyr"}},
                  {"sources": {"model": "L23pyr"}, "targets": {"model": "L23in" }},
                  {"sources": {"model": "L4pyr" }, "targets": {"model": "L4pyr" },
@@ -371,7 +380,7 @@ for isim in range(1, Nsim+1, 1):
                     "weights": 2.0,
                     "delays": {"uniform": {"min": 1.75, "max": 2.25}}}
 
-    for conn in [{"sources": {"model": "L23pyr"}, "targets": {"model": "L56pyr"}, "synapse_model": "NMDA"},
+    for conn in [#{"sources": {"model": "L23pyr"}, "targets": {"model": "L56pyr"}, "synapse_model": "NMDA"},
                  {"sources": {"model": "L23pyr"}, "targets": {"model": "L56pyr"}, "weights": 1.0},
                  {"sources": {"model": "L23pyr"}, "targets": {"model": "L56in"}, "weights": 1.0},
                  {"sources": {"model": "L4pyr" }, "targets": {"model": "L23pyr"}},
@@ -693,6 +702,9 @@ for isim in range(1, Nsim+1, 1):
         os.makedirs(figure_folder)
 
     for name, r in detectors.items():
+
+        print ('Saving spikes for ' + name)
+
         rec = r[0]
         # figure
         spikes = nest.GetStatus(rec, "events")[0]
@@ -704,7 +716,6 @@ for isim in range(1, Nsim+1, 1):
         plt.close()
 
         # data
-        print ('Saving spikes for ' + name)
         with open(data_folder + '/spikes_' + name + '.pickle', 'w') as f:
             pickle.dump(spikes, f)
         scipy.io.savemat(data_folder + '/spikes_' + name + '.mat', mdict={'senders': spikes['senders'], 'times': spikes['times']})
