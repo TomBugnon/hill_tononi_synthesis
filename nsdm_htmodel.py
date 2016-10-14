@@ -49,17 +49,25 @@ for isim in range(1, Nsim+1, 1):
     nest.ResetKernel()
 
     # set multi-thread on
-    nest.SetKernelStatus({"local_num_threads": 24})
+    N_vp = 24
+    nest.SetKernelStatus({"local_num_threads": N_vp})
 
     # initialize random seed
     import time
-    nest.SetKernelStatus({'grng_seed' : int(round(time.time() * 1000))})
+
 
     # Other generic imports
     import math
     import numpy as np
     import scipy.io
     import pickle
+
+
+    # Random
+    msd = int(round(time.time() * 1000))
+    nest.SetKernelStatus({'grng_seed' : msd})
+    nest.SetKernelStatus({'rng_seeds' : range(msd+N_vp+1, msd+2*N_vp+1)})
+    nest.SetStatus([0], {"time": 0.0})
 
 
     # Configurable Parameters
@@ -83,12 +91,12 @@ for isim in range(1, Nsim+1, 1):
     Params = {'N'           :     40,
               'visSize'     :    8.0,
               'f_dg'        :   20.0,
-              #'lambda_dg'   :    2.0, # spatial structure
-              'lambda_dg'   :   -1.0, # random: each pixel with random lambda_dg / phi_dg
+              'lambda_dg'   :    2.0, # spatial structure
+              #'lambda_dg'   :   -1.0, # random: each pixel with random lambda_dg / phi_dg
               'phi_dg'      :    0.0,
               'retDC'       :   30.0,
               'retAC'       :   30.0,
-              'simtime'     :  700.0,
+              'simtime'     :10000.0,
               'sim_interval':    2.0
               }
 
@@ -98,24 +106,49 @@ for isim in range(1, Nsim+1, 1):
     for p,v in Params.items():
         folder_name += p + "_%.2f_" % v
 
-    # original values
-    #nest.CopyModel('ht_neuron', 'CtxExNeuron', params={"Theta_eq": -51.0, "Tau_theta": 2.0, "spike_duration": 2.0, "Tau_spike": 1.75, "Tau_m": 16.0})
-    #nest.CopyModel('ht_neuron', 'CtxInNeuron', params={"Theta_eq": -53.0, "Tau_theta": 1.0,  "spike_duration": 1.0, "Tau_spike": 0.5, "Tau_m": 8.0})
-    #nest.CopyModel('ht_neuron', 'ThalamicNeuron', params={"Theta_eq": -53.0, "Tau_theta": 0.75, "spike_duration": 1.0, "Tau_spike": 0.75, "Tau_m": 8.0}) #original
-
+    # Neuron dynamics parameters
+    # Hill = Hoel
+    # - Theta_eq
+    # - Tau_theta
+    # - Tau_spike
+    # - Tau_m
+    # - g_KL
+    # Hill != Hoel
+    # - NaP_g_peak : Hill 1.0 / Hoel 0.5
+    # - h_g_peak   : Hill 1.0 / Hoel 0.5
+    # - T_g_peak   : Hill 1.0 / Hoel 0.5
+    # - KNa_g_peak : Hill 1.0 / Hoel 0.5
+    #
+    # Synaptic conductance
+    # Hoel wrote that the following params are same as Hill's paper
+    # But a script from his computer specifies different values
+    # - AMPA_g_peak  : Hill 0.1  / Hoel's script 0.01
+    # - NMDA_g_peak  : Hill 0.075 / Hoel's script 0.01
+    # - GABA_A_g_peak: Hill 0.33 / Hoel's script 0.275
+    # - GABA_B_g_peak: Hill 0.0132 / Hoel's script 0.06
+    # Keiko changed those values.
+    #TODO check I_syn_NMDA to I_syn_AMPA ratio: the ratio should be around 0.30 [1]
+    #TODO check EI ratio: Evoked Inhibitory conductance / Evoked Excitatory conductance should be around 5~2 [2]
+    # Referece
+    # [1] Myme et al., J Neurophysiology (2003)
+    # The NODA-to-AMPA ratio at synapses onto layer2/3 pyramical neurons is conserved across prefrontal and visual cortices
+    # [2] Heiss et al., J Neuroscience (2008)
+    # Shift in the balance between excitation and inhibition during sensory adaptation of S1 neurons
     nest.CopyModel('ht_neuron', 'CtxExNeuron',
                    params={"Theta_eq": -51.0,
                            "Tau_theta": 2.0,
                            "spike_duration": 2.0,
                            "Tau_spike": 1.75,
                            "Tau_m": 16.0,
-                           "AMPA_g_peak": 0.0375,
-                           "NMDA_g_peak": 0.0375,
-                           "GABA_A_g_peak": 0.165,
+                           "NaP_g_peak": 0.5,
+                           "h_g_peak": 0.5,
+                           "T_g_peak": 0.5,
+                           "KNa_g_peak": 0.5,
+                           "g_KL": 1.8, # wake=1.0, sleep=1.8
+                           "AMPA_g_peak": 0.075,
+                           "NMDA_g_peak": 0.01,
+                           "GABA_A_g_peak": 0.15,
                            "GABA_B_g_peak": 0.01})
-                           #"AMPA_g_peak":0.05,
-                           #"NMDA_g_peak":0.03,
-                           #"GABA_A_g_peak":0.15})
 
     nest.CopyModel('ht_neuron', 'CtxInNeuron',
                    params={"Theta_eq": -53.0,
@@ -123,13 +156,15 @@ for isim in range(1, Nsim+1, 1):
                            "spike_duration": 1.0,
                            "Tau_spike": 0.5,
                            "Tau_m": 8.0,
-                           "AMPA_g_peak": 0.0375,
-                           "NMDA_g_peak": 0.0375,
-                           "GABA_A_g_peak": 0.165,
+                           "NaP_g_peak": 0.5,
+                           "h_g_peak": 0.5,
+                           "T_g_peak": 0.5,
+                           "KNa_g_peak": 0.5,
+                           "g_KL": 1.8, # wake=1.0, sleep=1.8
+                           "AMPA_g_peak": 0.075,
+                           "NMDA_g_peak": 0.01,
+                           "GABA_A_g_peak": 0.15,
                            "GABA_B_g_peak": 0.01})
-                           #"AMPA_g_peak":0.05,
-                           #"NMDA_g_peak":0.03,
-                           #"GABA_A_g_peak":0.15})
 
     nest.CopyModel('ht_neuron', 'ThalamicNeuron',
                    params={"Theta_eq": -53.0,
@@ -137,13 +172,18 @@ for isim in range(1, Nsim+1, 1):
                            "spike_duration": 1.0,
                            "Tau_spike": 0.75,
                            "Tau_m": 8.0,
-                           "AMPA_g_peak": 0.0375,
-                           "NMDA_g_peak": 0.0375,
-                           "GABA_A_g_peak": 0.165,
-                           "GABA_B_g_peak": 0.1})
-                           #"AMPA_g_peak":0.05,
-                           #"NMDA_g_peak":0.03,
-                           #"GABA_A_g_peak":0.15})
+                           "GABA_A_E_rev": -80.0,
+                           #
+                           "NaP_g_peak": 0.5,
+                           "h_g_peak": 0.5,
+                           "T_g_peak": 0.5,
+                           "KNa_g_peak": 0.5,
+                           "g_KL": 1.8, # wake=1.0, sleep=1.8
+                           #
+                           "AMPA_g_peak": 0.075,
+                           "NMDA_g_peak": 0.01,
+                           "GABA_A_g_peak": 0.15,
+                           "GABA_B_g_peak": 0.01})
 
 
     # Input generating nodes
@@ -174,7 +214,8 @@ for isim in range(1, Nsim+1, 1):
 
     nest.CopyModel('sinusoidal_poisson_generator', 'RetinaNode',
                    params = {'amplitude': Params['retAC'],
-                             'rate'     : Params['retDC'] + 30 * np.random.rand(),
+                             #'rate': Params['retDC'] + 30 * np.random.rand(), #original
+                             'rate': Params['retDC'],
                              'frequency': Params['f_dg'],
                              'phase'    : 0.0,
                              'individual_spike_trains': True})
@@ -193,7 +234,7 @@ for isim in range(1, Nsim+1, 1):
     # the recorded neurons, but not the time.
     nest.CopyModel('multimeter', 'RecordingNode',
                    params = {'interval'   : Params['sim_interval'],
-                             'record_from': ['I_syn_AMPA', 'I_syn_NMDA', 'I_syn_GABA_A', 'I_syn_GABA_B', 'V_m', 'g_GABAA'],
+                             'record_from': ['I_syn_AMPA', 'I_syn_NMDA', 'I_syn_GABA_A', 'I_syn_GABA_B', 'V_m', 'g_GABAA', 'g_NMDA', 'g_AMPA', 'g_GABAB'],
                              'record_to'  : ['memory'],
                              'withgid'    : True,
                              'withtime'   : False})
@@ -345,7 +386,7 @@ for isim in range(1, Nsim+1, 1):
 
     # We use a loop to do the for for us. The loop runs over a list of
     # dictionaries with all values that need updating
-    for conn in [{"sources": {"model": "L23pyr"}, "targets": {"model": "L23pyr"}, "synapse_model": "NMDA"},
+    for conn in [{"sources": {"model": "L23pyr"}, "targets": {"model": "L23pyr"}, "synapse_model": "NMDA"}, #original
                  {"sources": {"model": "L23pyr"}, "targets": {"model": "L23pyr"}},
                  {"sources": {"model": "L23pyr"}, "targets": {"model": "L23in" }},
                  {"sources": {"model": "L4pyr" }, "targets": {"model": "L4pyr" },
@@ -372,8 +413,8 @@ for isim in range(1, Nsim+1, 1):
                     "delays": {"uniform": {"min": 1.75, "max": 2.25}}}
 
     for conn in [{"sources": {"model": "L23pyr"}, "targets": {"model": "L56pyr"}, "synapse_model": "NMDA"},
-                 {"sources": {"model": "L23pyr"}, "targets": {"model": "L56pyr"}, "weights": 1.0},
-                 {"sources": {"model": "L23pyr"}, "targets": {"model": "L56in"}, "weights": 1.0},
+                 {"sources": {"model": "L23pyr"}, "targets": {"model": "L56pyr"}, "weights": 1.0}, # original
+                 {"sources": {"model": "L23pyr"}, "targets": {"model": "L56in"}, "weights": 1.0}, # original
                  {"sources": {"model": "L4pyr" }, "targets": {"model": "L23pyr"}},
                  {"sources": {"model": "L4pyr" }, "targets": {"model": "L23in" }},
                  {"sources": {"model": "L56pyr"}, "targets": {"model": "L23pyr"}},
@@ -399,7 +440,8 @@ for isim in range(1, Nsim+1, 1):
                     "synapse_model": "GABA_A",
                     "mask": {"circular": {"radius": 7.0 * dpc}},
                     "kernel": {"gaussian": {"p_center": 0.25, "sigma": 7.5 * dpc}},
-                    "weights": 1.0,
+                    #"weights": 1.0, # original
+                    "weights": 1.5, # keiko
                     "delays": {"uniform": {"min": 1.75, "max": 2.25}}}
 
     # We use a loop to do the for for us. The loop runs over a list of
@@ -412,11 +454,14 @@ for isim in range(1, Nsim+1, 1):
                  {"sources": {"model": "L23in"}, "targets": {"model": "L56pyr"},
                   "synapse_model": "GABA_B", "mask": {"circular": {"radius": 1.0 * dpc}}, "kernel": 0.3},  #GABA_B
                  {"sources": {"model": "L23in"}, "targets": {"model": "L23pyr"}},
-                 {"sources": {"model": "L23in"}, "targets": {"model": "L23in" }},
+                 #{"sources": {"model": "L23in"}, "targets": {"model": "L23in"}},  #original
+                 {"sources": {"model": "L23in"}, "targets": {"model": "L23in"}, "weights": 1.0},  # keiko
                  {"sources": {"model": "L4in" }, "targets": {"model": "L4pyr" }},
-                 {"sources": {"model": "L4in" }, "targets": {"model": "L4in"  }},
+                 #{"sources": {"model": "L4in"}, "targets": {"model": "L4in"}},  #original
+                 {"sources": {"model": "L4in"}, "targets": {"model": "L4in"}, "weights": 1.0 },  # keiko
                  {"sources": {"model": "L56in"}, "targets": {"model": "L56pyr"}},
-                 {"sources": {"model": "L56in"}, "targets": {"model": "L56in" }}]:
+                 #{"sources": {"model": "L56in"}, "targets": {"model": "L56in"}}  #original
+                 {"sources": {"model": "L56in"}, "targets": {"model": "L56in" }, "weights": 1.0}]: # keiko
         ndict = intraInhBase.copy()
         ndict.update(conn)
         ccConnections.append(ndict)
@@ -446,7 +491,8 @@ for isim in range(1, Nsim+1, 1):
     # show that, we copy first, then update. We need no ``targets`` entry,
     # since Rp has only one neuron per location.
     corRet = corThalBase.copy()
-    corRet.update({"sources": {"model": "L56pyr"}, "weights": 2.5})
+    #corRet.update({"sources": {"model": "L56pyr"}, "weights": 2.5}) # original
+    corRet.update({"sources": {"model": "L56pyr"}, "weights": 5.0}) # keiko
 
     # Build all connections beginning in cortex
     # -----------------------------------------
@@ -539,7 +585,8 @@ for isim in range(1, Nsim+1, 1):
                                      "synapse_model": "AMPA",
                                      "mask": {"circular": {"radius": 2.0 * dpc}},
                                      "kernel": {"gaussian": {"p_center": 1.0, "sigma": 7.5 * dpc}},
-                                     "weights": 2.0}),
+                                     #"weights": 2.0}), # original
+                                     "weights": 1.0}), # keiko
                            (Tp, Tp, {"sources": {"model": "TpInter"},
                                      "targets": {"model": "TpRelay"},
                                      "synapse_model": "GABA_A",
@@ -573,7 +620,8 @@ for isim in range(1, Nsim+1, 1):
                            (Rp, Rp, {"sources": {"model": "RpNeuron"},
                                      "targets": {"model": "RpNeuron"},
                                      "synapse_model": "GABA_B",
-                                     "weights": 1.0,
+                                     #"weights": 1.0, # original
+                                     "weights": 0.75, # keiko
                                      "mask": {"circular": {"radius": 12.0 * dpc}},
                                      "kernel": {"gaussian": {"p_center": 0.5, "sigma": 7.5 * dpc}}})]:  # GABA_B
         thalBase.update(conn)
