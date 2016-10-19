@@ -3,12 +3,17 @@ import nest.topology as topo
 import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
+import nsdm_run_params as rp
 
 # ====================
 #  Load an image
 # ====================
 # Load an image, and convert from RGB to gray
-test_img_tmp = Image.open('/home/kfujii2/newNEST2/ht_model/test_img.jpg').convert('L')
+test_img_tmp = Image.open(rp.input_figure).convert('L')
+
+
+
+
 
 # Convert PIL format to numpy format
 # Convert int to float
@@ -54,7 +59,7 @@ detector = nest.Create('spike_detector',
 
 tgts = nest.GetLeaves(retina)[0]
 nest.Connect(recorder, tgts)
-nest.Connect(tgts, detector)
+#nest.Connect(tgts, detector)
 
 
 # ===========================
@@ -64,6 +69,7 @@ nest.Connect(tgts, detector)
 
 # Create spike_generator for all retina neurons
 sg = nest.Create('spike_generator', N*N)
+nest.Connect(sg, detector)
 
 # Connect using AMPA synapses
 receptors = nest.GetDefaults('ht_neuron')['receptor_types']
