@@ -93,15 +93,22 @@ intensity_threshold = 200.0
 
 # Set duration (float value)
 # Without duration, the network didn't have any spike
-duration = 1.0
-for t in range(0, t_end, sim_interval):
+interval = np.int(t_end/sim_interval)
+l = np.random.poisson(100, N*N)
+for i in range(0, N*N, 1):
+   if input_img[i] < intensity_threshold:
+       t = np.random.randint(1, t_end, l[i])
+       t.sort()
+       nest.SetStatus([sg[i]], {'spike_times': t.astype(float).tolist()})
 
-    if t==100:
-        for i in range(0, N*N, 1):
-            if input_img[i] < intensity_threshold:
-                nest.SetStatus([sg[i]], {'spike_times': [t + duration]})
+nest.Simulate(t_end)
 
-    nest.Simulate(sim_interval)
-
+spikes = nest.GetStatus(detector, "events")[0]
+screen_time = np.zeros((1600,500))
+screen_time[spikes['senders']-min(sg), spikes['times'].astype(np.int)] = 1
+screen = np.mean(screen_time, 1)
+s = screen.reshape((40,40))
+plt.imshow(s)
+plt.colorbar()
 
 print('end')
