@@ -101,8 +101,8 @@ for lambda_dg in lambdas:
               'visSize'     :    8.0,
               'f_dg'        :    0.5,
               'lambda_dg'   :    lambda_dg, # spatial structure
-              #'bar'         :  True,
-              'bar'         :  False,
+              'bar'         :  True,
+              #'bar'         :  False,
               'phi_dg'      :    0.0,
               'retDC'       :   10.0,
               'retAC'       :   10.0,
@@ -339,15 +339,23 @@ for lambda_dg in lambdas:
 
     # Original: Gabor retina input
 
+    # GetPosition => [column, row] !
+    # GetLeave => [2,3,4,5,6,7] =>
+    #  2 4 6
+    #  3 5 7
+
+    retina_positions_x = np.array([topo.GetPosition([n])[0][1] for n in nest.GetLeaves(retina)[0]]).reshape(Params['N'], Params['N']).T
+    retina_positions_y = np.array([topo.GetPosition([n])[0][0] for n in nest.GetLeaves(retina)[0]]).reshape(Params['N'], Params['N']).T
+
     if Params['bar']:
         if Params['lambda_dg'] >= 0:
             ## Now set phases of retinal oscillators; we use a list comprehension instead
             ## of a loop.
-            #tmp = [Params['retDC'] * barInit(topo.GetPosition([n])[0],Params["lambda_dg"], Params["phi_dg"],Params["visSize"])
-            #       for n in nest.GetLeaves(retina)[0]]
-            #screen = np.array(tmp).reshape(Params['N'], Params['N'])
-            #plt.imshow(screen)
-            #plt.show()
+            tmp = [Params['retDC'] * barInit(topo.GetPosition([n])[0],Params["lambda_dg"], Params["phi_dg"],Params["visSize"])
+                   for n in nest.GetLeaves(retina)[0]]
+            screen = np.array(tmp).reshape(Params['N'], Params['N']).T
+            plt.imshow(screen)
+            plt.show()
 
             [nest.SetStatus([n], {"rate": Params['retDC'] * barInit(topo.GetPosition([n])[0], Params["lambda_dg"], Params["phi_dg"],Params["visSize"])})
                     for n in nest.GetLeaves(retina)[0]]
