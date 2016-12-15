@@ -20,7 +20,11 @@
 #import sys
 #sys.path.append('/usr/lib/python2.7/dist-packages')
 
+import os.path
 import nsdm_run_params as rp
+
+data_root_folder = rp.data_folder
+figure_root_folder = rp.figure_folder
 
 Nsim = 1
 for isim in range(1, Nsim+1, 1):
@@ -144,7 +148,7 @@ for isim in range(1, Nsim+1, 1):
                            "h_g_peak": 0.5,
                            "T_g_peak": 0.5,
                            "KNa_g_peak": 0.5,
-                           "g_KL": 1.8, # wake=1.0, sleep=1.8
+                           "g_KL": 1.0, # wake=1.0, sleep=1.8
                            "AMPA_g_peak": 0.075,
                            "NMDA_g_peak": 0.01,
                            "GABA_A_g_peak": 0.15,
@@ -160,7 +164,7 @@ for isim in range(1, Nsim+1, 1):
                            "h_g_peak": 0.5,
                            "T_g_peak": 0.5,
                            "KNa_g_peak": 0.5,
-                           "g_KL": 1.8, # wake=1.0, sleep=1.8
+                           "g_KL": 1.0, # wake=1.0, sleep=1.8
                            "AMPA_g_peak": 0.075,
                            "NMDA_g_peak": 0.01,
                            "GABA_A_g_peak": 0.15,
@@ -178,7 +182,7 @@ for isim in range(1, Nsim+1, 1):
                            "h_g_peak": 0.5,
                            "T_g_peak": 0.5,
                            "KNa_g_peak": 0.5,
-                           "g_KL": 1.8, # wake=1.0, sleep=1.8
+                           "g_KL": 1.0, # wake=1.0, sleep=1.8
                            #
                            "AMPA_g_peak": 0.075,
                            "NMDA_g_peak": 0.01,
@@ -730,13 +734,11 @@ for isim in range(1, Nsim+1, 1):
     #TODO check difference with respect to running each step at a time
     nest.Simulate(Params['simtime'])
 
-    import os.path
-
-    data_folder = './data/erik_gvals/' + folder_name + 'detectors'
+    data_folder = data_root_folder + '/' + folder_name + 'detectors'
     if not os.path.isdir(data_folder):
         os.makedirs(data_folder)
 
-    figure_folder = './figures/erik_gvals/' + folder_name + 'detectors'
+    figure_folder = figure_root_folder + '/' + folder_name + 'detectors'
     if not os.path.isdir(figure_folder):
         os.makedirs(figure_folder)
 
