@@ -66,9 +66,13 @@ def simulation(Params):
     #reload(network_primary_keiko)
     #models, layers, conns  = network_primary_keiko.get_Network(Params)
 
-    import network_full_keiko
-    reload(network_full_keiko)
-    models, layers, conns  = network_full_keiko.get_Network(Params)
+    #import network_full_keiko
+    #reload(network_full_keiko)
+    #models, layers, conns  = network_full_keiko.get_Network(Params)
+
+    import network_full_leonardo
+    reload(network_full_leonardo)
+    models, layers, conns  = network_full_leonardo.get_Network(Params)
 
 
     # Create models
@@ -82,6 +86,48 @@ def simulation(Params):
     # Create connections, need to insert variable names
     for c in conns:
             eval('tp.ConnectLayers(%s,%s,c[2])' % (c[0], c[1]))
+
+    # Get target nodes for the vertical population
+    tp_nodes = nest.GetLeaves(Tp_layer, local_only=True)[0]
+    horizontal_nodes = nest.GetLeaves(Vp_horizontal, properties={'model': 'L4_exc'}, local_only=True)[0]
+    vertical_nodes = nest.GetLeaves(Vp_vertical, properties={'model': 'L4_exc'}, local_only=True)[0]
+
+    n_conns = []
+    for (idx, tp_node) in enumerate(tp_nodes):
+        this_conns = nest.GetConnections([tp_node], horizontal_nodes, synapse_model='AMPA_syn')
+        tgt_map = [conn[1] for conn in this_conns]
+        n_conns.append(len(tgt_map))
+        # nest.DisconnectOneToOne(tp_node, tgt_map[0], {"synapse_model": "AMPA_syn"})
+        #nest.Disconnect([tp_node], tgt_map, 'one_to_one', {"synapse_model": "AMPA_syn"})
+
+    plt.hist(n_conns)
+    # # >>> np.mean(n_conns)
+    # # 12.581250000000001
+    # # >>> np.std(n_conns)
+    # # 13.111908649677972
+    # # >>> 12/1600
+    # # 0
+    # >>> 12./1600.
+    # 0.0075
+
+    # Check connections
+
+    # Connections from Retina to TpRelay
+    # tp.PlotTargets(tp.FindCenterElement(Retina_layer), Tp_layer)
+    # tp.PlotTargets(tp.FindCenterElement(Tp_layer), Vp_vertical, 'L4_exc', 'AMPA_syn')
+    # tp.PlotTargets([tp_nodes[0]], Vp_vertical, 'L4_exc', 'AMPA_syn')
+    #pylab.title('Connections Retina -> TpRelay')
+    #pylab.show()
+
+    # Connections from TpRelay to L4pyr in Vp (horizontally tuned)
+    #topo.PlotTargets(topo.FindCenterElement(Tp), Vp_h, 'L4pyr', 'AMPA')
+    #pylab.title('Connections TpRelay -> Vp(h) L4pyr')
+    #pylab.show()
+
+    # Connections from TpRelay to L4pyr in Vp (vertically tuned)
+    #topo.PlotTargets(topo.FindCenterElement(Tp), Vp_v, 'L4pyr', 'AMPA')
+    #pylab.title('Connections TpRelay -> Vp(v) L4pyr')
+    #pylab.show()
 
     '''
     # pablo

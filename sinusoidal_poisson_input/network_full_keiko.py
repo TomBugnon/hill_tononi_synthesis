@@ -498,6 +498,7 @@ def get_Connections(params):
         ccConnections.append(ndict)
         ccxConnections.append(ndict)
 
+
     #! Cortico-cortical, same orientation
     [allconns.append(['Vs_horizontal','Vs_horizontal',c]) for c in ccConnections]
     [allconns.append(['Vs_vertical','Vs_vertical',c]) for c in ccConnections]
@@ -731,6 +732,16 @@ def get_Connections(params):
         "allow_multapses": False
     }
 
+    # if params['scrambled']:
+    #     # Horizontally tuned
+    #     Vp_Thalamocortical_base.update({"mask": {"rectangular": {"lower_left" : [-8.0*dpcP, -8.0*dpcP],
+    #                                                              "upper_right": [ 8.0*dpcP,  8.0*dpcP]}}})
+    #     for conn in [{"targets": {"model": "L4_exc" }, "kernel": 0.015},
+    #                  {"targets": {"model": "L56_exc"}, "kernel": 0.009}]:
+    #         Vp_Thalamocortical_base.update(conn)
+    #         allconns.append(['Tp_layer','Vp_horizontal', Vp_Thalamocortical_base.copy()])
+    #         allconns.append(['Tp_layer','Vp_vertical', Vp_Thalamocortical_base.copy()])
+    # else:
     # Horizontally tuned
     Vp_Thalamocortical_base.update({"mask": {"rectangular": {"lower_left" : [-4.0*dpcP, -1.0*dpcP],
                                                              "upper_right": [ 4.0*dpcP,  1.0*dpcP]}}})
