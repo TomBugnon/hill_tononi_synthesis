@@ -53,27 +53,13 @@ def simulation(Params):
     nest.SetKernelStatus({"local_num_threads": Params['threads'],'resolution': Params['resolution']})
     nest.SetStatus([0],{'print_time': True})
 
-    # import network description
-    #import network
-    #reload(network)
-    #models, layers, conns  = network.get_Network(Params)
-
-    #import network_full
-    #reload(network_full)
-    #models, layers, conns  = network_full.get_Network(Params)
-
-    #import network_primary_keiko
-    #reload(network_primary_keiko)
-    #models, layers, conns  = network_primary_keiko.get_Network(Params)
-
-    #import network_full_keiko
-    #reload(network_full_keiko)
-    #models, layers, conns  = network_full_keiko.get_Network(Params)
-
-    import network_full_leonardo
-    reload(network_full_leonardo)
-    models, layers, conns  = network_full_leonardo.get_Network(Params)
-
+    import importlib
+    network = importlib.import_module(Params['network'])
+    reload(network)
+    models, layers, conns  = network.get_Network(Params)
+    # import network_full_keiko
+    # reload(network_full_keiko)
+    # models, layers, conns  = network_full_keiko.get_Network(Params)
 
     # Create models
     for m in models:
@@ -87,37 +73,97 @@ def simulation(Params):
     for c in conns:
             eval('tp.ConnectLayers(%s,%s,c[2])' % (c[0], c[1]))
 
+
+    # nest.DisconnectOneToOne(tp_node, tgt_map[0], {"synapse_model": "AMPA_syn"})
+    #nest.Disconnect([tp_node], tgt_map, 'one_to_one', {"synapse_model": "AMPA_syn"})
+
     # Get target nodes for the vertical population
-    tp_nodes = nest.GetLeaves(Tp_layer, local_only=True)[0]
-    horizontal_nodes = nest.GetLeaves(Vp_horizontal, properties={'model': 'L4_exc'}, local_only=True)[0]
-    vertical_nodes = nest.GetLeaves(Vp_vertical, properties={'model': 'L4_exc'}, local_only=True)[0]
+    # tp_nodes = nest.GetLeaves(Tp_layer, local_only=True)[0]
 
-    n_conns = []
-    for (idx, tp_node) in enumerate(tp_nodes):
-        this_conns = nest.GetConnections([tp_node], horizontal_nodes, synapse_model='AMPA_syn')
-        tgt_map = [conn[1] for conn in this_conns]
-        n_conns.append(len(tgt_map))
-        # nest.DisconnectOneToOne(tp_node, tgt_map[0], {"synapse_model": "AMPA_syn"})
-        #nest.Disconnect([tp_node], tgt_map, 'one_to_one', {"synapse_model": "AMPA_syn"})
+    if Params.has_key('show_V4_num_conn_figure') and Params['show_V4_num_conn_figure']:
 
-    plt.hist(n_conns)
-    # # >>> np.mean(n_conns)
-    # # 12.581250000000001
-    # # >>> np.std(n_conns)
-    # # 13.111908649677972
-    # # >>> 12/1600
-    # # 0
-    # >>> 12./1600.
-    # 0.0075
+        horizontal_nodes = nest.GetLeaves(Vp_horizontal, properties={'model': 'L4_exc'}, local_only=True)[0]
+        vertical_nodes = nest.GetLeaves(Vp_vertical, properties={'model': 'L4_exc'}, local_only=True)[0]
+
+        n_conns_hor = []
+        for (idx, horizontal_node) in enumerate(horizontal_nodes):
+            tgt_map = []
+            this_conns = nest.GetConnections([horizontal_node], horizontal_nodes, synapse_model='AMPA_syn')
+            tgt_map.extend([conn[1] for conn in this_conns])
+            n_conns_hor.append(len(tgt_map))
+
+        plt.figure()
+        plt.hist(n_conns_hor, range(0, max(n_conns_hor + [30])))
+        plt.title('# of connections Vp(h) L4pyr -> Vp(h) L4Pyr')
+
+        n_conns_hor = []
+        for (idx, horizontal_node) in enumerate(horizontal_nodes):
+            tgt_map = []
+            this_conns = nest.GetConnections([horizontal_node], vertical_nodes, synapse_model='AMPA_syn')
+            tgt_map.extend([conn[1] for conn in this_conns])
+            n_conns_hor.append(len(tgt_map))
+
+            # nest.DisconnectOneToOne(tp_node, tgt_map[0], {"synapse_model": "AMPA_syn"})
+            #nest.Disconnect([tp_node], tgt_map, 'one_to_one', {"synapse_model": "AMPA_syn"})
+
+        plt.figure()
+        plt.hist(n_conns_hor, range(0, max(n_conns_hor + [30])))
+        plt.title('# of connections Vp(h) L4pyr -> Vp(v) L4Pyr')
+
+        n_conns_ver = []
+        for (idx, vertical_node) in enumerate(vertical_nodes):
+            tgt_map = []
+            this_conns = nest.GetConnections([vertical_node], vertical_nodes, synapse_model='AMPA_syn')
+            tgt_map.extend([conn[1] for conn in this_conns])
+            n_conns_ver.append(len(tgt_map))
+
+        plt.figure()
+        plt.hist(n_conns_ver, range(0, max(n_conns_ver + [30])))
+        plt.title('# of connections Vp(v) L4pyr -> Vp(v) L4Pyr')
+
+        n_conns_ver = []
+        for (idx, vertical_node) in enumerate(vertical_nodes):
+            tgt_map = []
+            this_conns = nest.GetConnections([vertical_node], horizontal_nodes, synapse_model='AMPA_syn')
+            tgt_map.extend([conn[1] for conn in this_conns])
+            n_conns_ver.append(len(tgt_map))
+
+        plt.figure()
+        plt.hist(n_conns_ver, range(0, max(n_conns_ver + [30])))
+        plt.title('# of connections Vp(v) L4pyr -> Vp(h) L4Pyr')
 
     # Check connections
 
     # Connections from Retina to TpRelay
     # tp.PlotTargets(tp.FindCenterElement(Retina_layer), Tp_layer)
-    # tp.PlotTargets(tp.FindCenterElement(Tp_layer), Vp_vertical, 'L4_exc', 'AMPA_syn')
-    # tp.PlotTargets([tp_nodes[0]], Vp_vertical, 'L4_exc', 'AMPA_syn')
-    #pylab.title('Connections Retina -> TpRelay')
-    #pylab.show()
+
+    if Params.has_key('show_V4_connectivity_figure') and Params['show_V4_connectivity_figure']:
+
+        Vp_hor_gids = tp.GetElement(Vp_horizontal, [0,0])
+        n_Vp_hor = len(Vp_hor_gids)
+
+        f = [];
+        for idx in range(n_Vp_hor):
+            f.append(plt.figure())
+
+        positions = range(0,41,10)
+        positions[-1] -= 1
+        for xi in range(len(positions)):
+            for yi in range(len(positions)):
+                print("Position [%d,%d] : %d" %(xi,yi,yi*(len(positions))+xi+1))
+                x = positions[xi]
+                y = positions[yi]
+                Vp_hor_gids = tp.GetElement(Vp_horizontal, [x,y])
+                Vp_hor_status = nest.GetStatus(Vp_hor_gids)
+                for (idx, n) in enumerate(Vp_hor_status):
+                    if n['Tau_theta'] == 2.0:
+                        print idx
+                        try:
+                            f[idx].add_subplot(len(positions), len(positions), yi*(len(positions))+xi+1)
+                            tp.PlotTargets([Vp_hor_gids[idx]], Vp_horizontal, 'L4_exc', 'AMPA_syn', f[idx])
+                        except:
+                            print('%i bad' % Vp_hor_gids[idx])
+
 
     # Connections from TpRelay to L4pyr in Vp (horizontally tuned)
     #topo.PlotTargets(topo.FindCenterElement(Tp), Vp_h, 'L4pyr', 'AMPA')
@@ -245,7 +291,12 @@ def simulation(Params):
                               (Tp_layer  , 'Tp_exc'),
                               (Tp_layer  , 'Tp_inh'),
                               (Vp_vertical, 'L4_exc'),
-                              (Vp_horizontal, 'L4_exc')]:
+                              (Vp_vertical, 'L4_inh'),
+                              (Vp_horizontal, 'L4_exc'),
+                              (Vp_vertical, 'L23_exc'),
+                              (Vp_horizontal, 'L23_exc'),
+                              (Vp_vertical, 'L56_exc'),
+                              (Rp_layer, 'Rp')]:
         rec = nest.Create('RecordingNode')
         recorders.append([rec,population,model])
         if (model=='Retina'):
@@ -348,82 +399,83 @@ def simulation(Params):
     #! ====================
     #! Plot Results
     #! ====================
-    '''
-    print "plotting..."
 
-    rows = 9
-    cols = 2
+    if Params.has_key('show_main_figure') and Params['show_main_figure']:
+        print "plotting..."
 
-    fig = plt.figure()
-    fig.subplots_adjust(hspace=0.4)
+        rows = 9
+        cols = 2
 
-    # Plot A: membrane potential rasters
+        fig = plt.figure()
+        fig.subplots_adjust(hspace=0.4)
 
-    recorded_models = [(Retina_layer,'Retina'),
-                        (Vp_vertical,'L23_exc'),
-                        (Vp_vertical,'L4_exc'),
-                        (Vp_vertical,'L56_exc'),
-                        (Rp_layer,'Rp'),
-                        (Tp_layer,'Tp_exc')]
+        # Plot A: membrane potential rasters
 
-    #plotting.potential_raster(fig,recorders,recorded_models,0,Params['Np'],np.sum(Params['intervals']),Params['resolution'],rows,cols,0)
-    plotting.potential_raster(fig,recorders,recorded_models,0,Params['Np'],np.sum(Params['intervals']),Params['resolution'],rows,cols,0)
-    #starting_neuron = 800+1
-    #plotting.potential_raster(fig,recorders,recorded_models,starting_neuron,Params['Np'],np.sum(Params['intervals']),Params['resolution'],rows,cols,0)
+        recorded_models = [(Retina_layer,'Retina'),
+                            (Vp_vertical,'L23_exc'),
+                            (Vp_vertical,'L4_exc'),
+                            (Vp_vertical,'L56_exc'),
+                            (Rp_layer,'Rp'),
+                            (Tp_layer,'Tp_exc')]
 
-    plt.title('Evoked')
+        #plotting.potential_raster(fig,recorders,recorded_models,0,Params['Np'],np.sum(Params['intervals']),Params['resolution'],rows,cols,0)
+        plotting.potential_raster(fig,recorders,recorded_models,0,Params['Np'],np.sum(Params['intervals']),Params['resolution'],rows,cols,0)
+        #starting_neuron = 800+1
+        #plotting.potential_raster(fig,recorders,recorded_models,starting_neuron,Params['Np'],np.sum(Params['intervals']),Params['resolution'],rows,cols,0)
 
-    # Plot B: individual intracellular traces
+        plt.title('Evoked')
 
-    recorded_models =[(Vp_vertical,'L4_exc'),
-                      (Vp_vertical,'L4_inh')]
+        # Plot B: individual intracellular traces
 
-    #plotting.intracellular_potentials(fig, recorders, recorded_models, 21, rows, cols, 6) #original
-    # keiko
-    total_time = 0.0
-    for t in Params['intervals']:
-        total_time += t
+        recorded_models =[(Vp_vertical,'L4_exc'),
+                          (Vp_vertical,'L4_inh')]
 
-    #draw_neuron = (Params['Np']*Params['Np']/2)
-    #plotting.intracellular_potentials(fig, recorders, recorded_models, draw_neuron, rows, cols, 6, total_time)
-    plotting.intracellular_potentials(fig, recorders, recorded_models, 21, rows, cols, 6, total_time)
-    #plotting.intracellular_potentials(fig, recorders, recorded_models, 820, rows, cols, 6, total_time)
+        #plotting.intracellular_potentials(fig, recorders, recorded_models, 21, rows, cols, 6) #original
+        # keiko
+        total_time = 0.0
+        for t in Params['intervals']:
+            total_time += t
 
-    # Plot C: topographical activity of the vertical and horizontal layers
+        #draw_neuron = (Params['Np']*Params['Np']/2)
+        #plotting.intracellular_potentials(fig, recorders, recorded_models, draw_neuron, rows, cols, 6, total_time)
+        plotting.intracellular_potentials(fig, recorders, recorded_models, 21, rows, cols, 6, total_time)
+        #plotting.intracellular_potentials(fig, recorders, recorded_models, 820, rows, cols, 6, total_time)
 
-    recorded_models = [(Vp_vertical,'L23_exc')]
+        # Plot C: topographical activity of the vertical and horizontal layers
 
-    labels = ["Vertical"]
-    start = 130.0
-    stop = 140.0
-    #start = 650.0
-    #stop = 660.0
-    plotting.topographic_representation(fig,
-                                        recorders,
-                                        recorded_models,
-                                        labels,
-                                        Params['Np'],
-                                        np.sum(Params['intervals']),
-                                        Params['resolution'],
-                                        rows,
-                                        cols,
-                                        start,
-                                        stop,
-                                        8,
-                                        0)
+        recorded_models = [(Vp_vertical,'L23_exc')]
 
-    recorded_models = [(Vp_horizontal,'L23_exc')]
+        labels = ["Vertical"]
+        start = 130.0
+        stop = 140.0
+        #start = 650.0
+        #stop = 660.0
+        plotting.topographic_representation(fig,
+                                            recorders,
+                                            recorded_models,
+                                            labels,
+                                            Params['Np'],
+                                            np.sum(Params['intervals']),
+                                            Params['resolution'],
+                                            rows,
+                                            cols,
+                                            start,
+                                            stop,
+                                            8,
+                                            0)
 
-    labels = ["Horizontal"]
-    start = 130.0
-    stop = 140.0
-    #start = 650.0
-    #stop = 660.0
+        recorded_models = [(Vp_horizontal,'L23_exc')]
 
-    plotting.topographic_representation(fig,recorders,recorded_models,labels,Params['Np'],np.sum(Params['intervals']),Params['resolution'],rows,cols,start,stop,8,1)
+        labels = ["Horizontal"]
+        start = 130.0
+        stop = 140.0
+        #start = 650.0
+        #stop = 660.0
 
-    plt.show()
-    '''
+        plotting.topographic_representation(fig,recorders,recorded_models,labels,Params['Np'],np.sum(Params['intervals']),Params['resolution'],rows,cols,start,stop,8,1)
+
+        plt.show()
+
 
 
     # Plot D: movie
@@ -529,6 +581,7 @@ def simulation(Params):
         tp.DumpLayerNodes(population, filename_nodes)
     '''
 
-    shutil.copy2('network_full_keiko.py', Params['data_folder'] + 'network_full_keiko.py')
+    network_script = Params['network'] + '.py'
+    shutil.copy2(network_script, Params['data_folder'] + network_script)
 
     print('end')

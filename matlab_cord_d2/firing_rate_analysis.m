@@ -8,15 +8,32 @@ clear
 %dirname = '/media/kfujii2/TOSHIBA EXT/experimental_data/lobustness_pattern/walking_human_rate100_scrbl_xy/';
 %dirname = '/media/kfujii2/TOSHIBA EXT/experimental_data/lobustness_pattern/walking_human_rate100_scrbl_t/';
 %dirname = '/media/kfujii2/TOSHIBA EXT/experimental_data/lobustness_pattern/moving_rectangle2_rate100_dst/';
-dirname = '/media/kfujii2/TOSHIBA EXT/experimental_data/lobustness_pattern/scramble_test_moving_rectangle2_rate20_dst/';
+% dirname = '/media/kfujii2/TOSHIBA EXT/experimental_data/lobustness_pattern/scramble_test_moving_rectangle2_rate20_dst/';
+% dirname = '/media/leonardo/ext4T/nsdm/2Hz_vertical_rate100/';
+
+% dirname = '/data/nsdm/random_rate100/';
+% dirname = '/data/nsdm/random_rate100_scrambled/';
+% dirname = '/data/nsdm/vertical_rate100/';
+% dirname = '/data/nsdm/vertical_rate100_run2/';
+% dirname = '/data/nsdm/vertical_rate100_scrambled/';
+
+% dirname = '/data/nsdm/vertical_rate100_network_full_keiko_intact/';
+% dirname = '/data/nsdm/random_rate100_network_full_keiko_intact/';
+% dirname = '/data/nsdm/random_rate100_network_full_leonardo_intact/';
+% dirname = '/data/nsdm/vertical_rate100_network_full_leonardo_intact/';
+
+% dirname = '/data/nsdm/random_rate100_network_full_leonardo_scrambled/';
+dirname = '/data/nsdm/vertical_rate100_network_full_leonardo_scrambled/';
+
 filename_v = strcat(dirname, 'spike_Vp_v_L4_exc.mat');
 filename_h = strcat(dirname, 'spike_Vp_h_L4_exc.mat');
 
 time_threshold_min = 500;
-time_threshold_max = 5000;
+% time_threshold_max = 5000;
+time_threshold_max = 1500;
 
 time_window_min = 1; %[ms]
-time_window_max = 300; %[ms]
+time_window_max = 500; %[ms]
 window_step = 2;
 
 
@@ -89,7 +106,7 @@ for time_window = time_window_min:window_step:time_window_max %[ms]
     %median_whole = median( reshape(firing_rate,1,numel(firing_rate)) );
     %median_whole = mean( reshape(firing_rate,1,numel(firing_rate)) );
     
-    fprintf('Fixed threshold!\n');
+%     fprintf('Fixed threshold!\n');
     median_whole = 1;
 
     % 3. Calculate state probability for each neuron using the threshold value
@@ -198,7 +215,7 @@ plot(max_resolution*[1, 1], mean(max_p_positive), 'ob', 'MarkerSize',10,...
 'MarkerEdgeColor','k','MarkerFaceColor','g')
 set(gca,'XTick', x_time(1:20:end))
 ylim([0 1.0])
-title( strcat('max probability (timewindow = ',num2str(max_resolution), ')') )
+title( strcat('probability (win maxD2 = ',num2str(max_resolution), ')') )
 
 subplot(1,3,3)
 plot(x_time,threshold_all)
@@ -266,7 +283,7 @@ bar(median_each_all(10:10:end,:)')
 % 
 % 
 % 
-% %% Frequency analysis
+%% Frequency analysis
 % X = sum(spike_mat,1);
 % 
 % Fs = 1000;            % Sampling frequency

@@ -43,11 +43,11 @@ def potential_raster(fig,recorders,recorded_models,starting_neuron,number_cells,
 
 
             if l>0:
-                cax = Vax.matshow(raster, interpolation='none', aspect='auto',vmin=-70.0,vmax=-45.0)
+                cax = Vax.matshow(raster,aspect='auto',vmin=-70.0,vmax=-45.0)
                 Vax.axes.get_xaxis().set_ticks([])
             else:
                 # cax = Vax.matshow(raster,aspect='auto') # original
-                cax = Vax.matshow(raster, interpolation='none', aspect='auto',vmin=0.0,vmax=200.0) # keiko
+                cax = Vax.matshow(raster, aspect='auto',vmin=0.0,vmax=200.0) # keiko
                 fig.colorbar(cax,ticks=[0.0, 100.0, 200.0],orientation='horizontal') # keiko
 
             Vax.xaxis.tick_top()

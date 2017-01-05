@@ -29,10 +29,10 @@ if sim_fig_4:
         'ret_amplitude': 0.0, # amplitude of the sinusoidal poisson generator
                               # used for retina ganglion cells (spikes^(-1))
         'temporal_frequency': 0.0, # frequency of the generator (Hz)
-        'threads': 12, # threads to use in NEST simulation
+        'threads': 24, # threads to use in NEST simulation
         #'intervals': [1000.0, 1000.0, 7500.0],  # keiko
         #'intervals': [500.0],  # Intervals (in ms) of the waking,transition
-        'intervals': [500.0, 500.0, 500.0, 500.0, 3000.0],  # Intervals (in ms) of the waking,transition
+        #'intervals': [500.0, 500.0, 500.0, 500.0, 3000.0],  # Intervals (in ms) of the waking,transition
                                            # and sleep modes
         'resolution': 1.0 # Simulation step (in ms)
     }
@@ -44,52 +44,40 @@ if sim_fig_4:
 
 if sim_fig_3:
 
-    root_data_folder = '/data/nsdm/'
-
-    network ='network_full_keiko'
-    # network = 'network_full_leonardo'
-
-    # scramble network connections? only works with network_full_leonardo!
-    scramble = True
-    # scramble = False
-
-    # structured_input = True
-    structured_input = False
-    ret_rate = 100.0
-
-    if structured_input:
-        # vertical
-        lambda_dg = 2.0
-        input_flag = True
-        data_folder = '%s/vertical_rate%d_%s_%s/' % (root_data_folder, int(ret_rate), network, 'scrambled' if scramble else 'intact')
-    else:
-        lambda_dg = -1.0
-        input_flag = False
-        data_folder = '%s/random_rate%d_%s_%s/' % (root_data_folder, int(ret_rate), network, 'scrambled' if scramble else 'intact')
+    #movie = 'transform_mp4'
+    #movie = 'walking_human'
+    movie = 'moving_rectangle2'
+    rate = '20'
 
     Params = {
-        'network' : network,
         'Np': 40,
         'Ns': 30,
         'visSize': 8.0,
-        'ret_rate': ret_rate,#20.0,
+        'ret_rate': rate,
         'ret_amplitude': 0.0, # random
         'temporal_frequency': 2.0, # (Hz)
         'spatial_frequency' : 0.5, # (cpd)
-        'threads': 12,
+        'threads': 24,
         #'intervals': [100.0, 250.0, 650.0],  # original
         #'intervals': [5000.0],  # keiko
-        'intervals': [2000.0],  # leonardo
+        'intervals': 5000,
         'resolution': 1.0,
         'phi_dg': 0.0,  # vertical
         #'phi_dg': 0.5*np.pi, # horizontal
-
-        'scrambled' : scramble, # scramble the connectivity: no invariance for horizontal/vertical stimulus
-
-        'lambda_dg': lambda_dg,  # visSize / number_of_lines
-        'input_flag': input_flag,
-
-        'data_folder': data_folder
+        'movie' : movie,
+        #--- vertical
+        'lambda_dg': 2.0,  # visSize / number_of_lines
+        'input_flag': True,
+        #'data_folder': '/media/kfujii2/TOSHIBA EXT/experimental_data/lobustness_pattern/' + movie + '/'
+        'data_folder': '/media/kfujii2/TOSHIBA EXT/experimental_data/lobustness_pattern/' + movie + '_rate' + rate + '_dst/'
+        #'data_folder': '/media/kfujii2/TOSHIBA EXT/experimental_data/lobustness_pattern/' + movie + '_rate' + rate + '_scrbl_xy/'
+        #'data_folder': '/media/kfujii2/TOSHIBA EXT/experimental_data/lobustness_pattern/' + movie + '_rate' + rate + '_scrbl_t/'
+        #'data_folder': '/home/kfujii2/newNEST2/ht_model_pablo_based/data/2Hz_vertical_2016Dec08/'
+        #
+        #--- random
+        #'lambda_dg': -1.0,  # visSize / number_of_lines
+        #'input_flag': False,
+        #'data_folder': '/home/kfujii2/newNEST2/ht_model_pablo_based/data/random_2016Nov27/'
     }
 
     # Run simulation of figure 3

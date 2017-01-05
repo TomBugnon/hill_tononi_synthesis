@@ -389,7 +389,7 @@ def get_Connections(params):
     [allconns.append(['Vp_vertical','Vp_vertical',c]) for c in ccConnections]
 
     if params['scrambled']:
-        [allconns.append(['Vp_horizontal','Vp_vertical',c]) for c in ccConnections]
+        [allconns.append(['Vp_horizontal','Vp_verticall',c]) for c in ccConnections]
         [allconns.append(['Vp_vertical','Vp_horizontal',c]) for c in ccConnections]
     else:
         [allconns.append(['Vp_horizontal','Vp_horizontal',c]) for c in ccConnections]
@@ -582,13 +582,9 @@ def get_Connections(params):
     if params['scrambled']:
         for idx, con in enumerate(fwdInterConns):
             if con[1] == 'Vs_horizontal':
-                x = list(fwdInterConns[idx])
-                x[1] = 'Vs_vertical'
-                fwdInterConns[idx] = tuple(x)
+                fwdInterConns[idx][1] = 'Vs_vertical'
             if con[1] == 'Vs_vertical':
-                x = list(fwdInterConns[idx])
-                x[1] = 'Vs_horizontal'
-                fwdInterConns[idx] = tuple(x)
+                fwdInterConns[idx][1] = 'Vs_horizontal'
 
     allconns += [ (c[0], c[1], updateDicts(Vp_Vs_forward_interareal_base, c[2])) for c in fwdInterConns ]
 
@@ -627,13 +623,9 @@ def get_Connections(params):
     if params['scrambled']:
         for idx, con in enumerate(bckInterConns):
             if con[1] == 'Vs_horizontal':
-                x = list(fwdInterConns[idx])
-                x[1] = 'Vs_vertical'
-                fwdInterConns[idx] = tuple(x)
+                bckInterConns[idx][1] = 'Vs_vertical'
             if con[1] == 'Vs_vertical':
-                x = list(fwdInterConns[idx])
-                x[1] = 'Vs_horizontal'
-                fwdInterConns[idx] = tuple(x)
+                bckInterConns[idx][1] = 'Vs_horizontal'
 
     allconns += [ (c[0], c[1], updateDicts(Vs_Vp_backward_interareal_base, c[2])) for c in bckInterConns ]
 

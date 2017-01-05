@@ -242,7 +242,7 @@ def get_Connections(params):
         "connection_type": "divergent",
         "synapse_model": "AMPA_syn",
         "mask": {"circular": {"radius": 12.0 * dpcP}},
-        "kernel": {"gaussian": {"p_center": 0.05/2., "sigma": 7.5 * dpcP}},
+        "kernel": {"gaussian": {"p_center": 0.05, "sigma": 7.5 * dpcP}},
         #"weights": 1.0, # original
         "weights": 1.0 * weight_gain,
         #"weights": 0.75 * weight_gain, # keiko
@@ -269,7 +269,7 @@ def get_Connections(params):
         "connection_type": "divergent",
         "synapse_model": "AMPA_syn",
         "mask": {"circular": {"radius": 2.0 * dpcP}},
-        "kernel": {"gaussian": {"p_center": 1.0/2., "sigma": 7.5 * dpcP}},
+        "kernel": {"gaussian": {"p_center": 1.0, "sigma": 7.5 * dpcP}},
         #"weights": 2.0, # original
         "weights": 2.0 * weight_gain,
         #"weights": 1.5 * weight_gain, # keiko
@@ -298,7 +298,7 @@ def get_Connections(params):
         "connection_type": "divergent",
         "synapse_model": "GABA_A_syn",
         "mask": {"circular": {"radius": 7.0 * dpcP}},
-        "kernel": {"gaussian": {"p_center": 0.25/2., "sigma": 7.5 * dpcP}},
+        "kernel": {"gaussian": {"p_center": 0.25, "sigma": 7.5 * dpcP}},
         # "weights": 1.0, # original
         "weights": 1.0 * weight_gain, #
         #"weights": 2.0 * weight_gain, # keiko
@@ -312,19 +312,19 @@ def get_Connections(params):
                   "synapse_model": "GABA_B_syn",
                   #"mask": {"circular": {"radius": 1.0 * dpcP}},  # original
                   "mask": {"circular": {"radius": 2.0 * dpcP}},  # keiko
-                  "kernel": 0.3/2.},
+                  "kernel": 0.3},
                  {"sources": {"model": "L23_inh" },
                   "targets": {"model": "L4_exc" },
                   "synapse_model": "GABA_B_syn",
                   #"mask": {"circular": {"radius": 1.0 * dpcP}}, # original
                   "mask": {"circular": {"radius": 2.0 * dpcP}},  # keiko
-                  "kernel": 0.3/2.},
+                  "kernel": 0.3},
                  {"sources": {"model": "L23_inh"},
                   "targets": {"model": "L56_exc" },
                   "synapse_model": "GABA_B_syn",
                   #"mask": {"circular": {"radius": 1.0 * dpcP}}, #original
                   "mask": {"circular": {"radius": 2.0 * dpcP}},  # keiko
-                  "kernel": 0.3/2.}]:
+                  "kernel": 0.3}]:
         ndict = Vp_intracortical_inhibitory_base.copy()
         ndict.update(conn)
         ccConnections.append(ndict)
@@ -361,8 +361,6 @@ def get_Connections(params):
         ccConnections.append(ndict)
 
     # for different orientation, inh->inh = 0.75
-    Vp_intracortical_cross_ori_inhibitory_base = Vp_intracortical_inhibitory_base.copy()
-    Vp_intracortical_cross_ori_inhibitory_base["kernel"]["gaussian"]["p_center"] *= 2.
     for conn in [{"sources": {"model": "L23_inh"}, "targets": {"model": "L23_exc"}},
                  # {"sources": {"model": "L23_inh"}, "targets": {"model": "L23_inh"}},  #original
                  {"sources": {"model": "L23_inh"}, "targets": {"model": "L23_inh"}, "weights": 0.75 * weight_gain},
@@ -374,26 +372,14 @@ def get_Connections(params):
                  {"sources": {"model": "L56_inh"}, "targets": {"model": "L56_exc"}},
                  # {"sources": {"model": "L56_inh"}, "targets": {"model": "L56_inh"}}]:  #original
                  {"sources": {"model": "L56_inh"}, "targets": {"model": "L56_inh"}, "weights": 0.75 * weight_gain}]:  # keiko
-        ndict = Vp_intracortical_cross_ori_inhibitory_base.copy()
+        ndict = Vp_intracortical_inhibitory_base.copy()
         ndict.update(conn)
         ccxConnections.append(ndict)
 
-    # Leonardo:
-    # For connections within populations with same orientation selectivity, connect twice so that it is
-    # easier to scramble network and remove orientation selectivity if scramble = True.
-    # Notice: probabilities have been divided by 2, so the final result should be the same
-    # as before when scrambled == False, as long allow_multapses == False.
 
     #! Cortico-cortical, same orientation
     [allconns.append(['Vp_horizontal','Vp_horizontal',c]) for c in ccConnections]
     [allconns.append(['Vp_vertical','Vp_vertical',c]) for c in ccConnections]
-
-    if params['scrambled']:
-        [allconns.append(['Vp_horizontal','Vp_vertical',c]) for c in ccConnections]
-        [allconns.append(['Vp_vertical','Vp_horizontal',c]) for c in ccConnections]
-    else:
-        [allconns.append(['Vp_horizontal','Vp_horizontal',c]) for c in ccConnections]
-        [allconns.append(['Vp_vertical','Vp_vertical',c]) for c in ccConnections]
 
     #! Cortico-cortical, cross-orientation
     [allconns.append(['Vp_horizontal','Vp_vertical',c]) for c in ccxConnections]
@@ -414,7 +400,7 @@ def get_Connections(params):
         "connection_type":"divergent",
         "synapse_model": "AMPA_syn",
         "mask": {"circular": {"radius": 12.0 * dpcS}},
-        "kernel": {"gaussian": {"p_center": 0.05/2., "sigma": 7.5 * dpcP}},
+        "kernel": {"gaussian": {"p_center": 0.05, "sigma": 7.5 * dpcP}},
         #"weights": 1.0, # original
         "weights": 1.0 * weight_gain,
         "delays": {"uniform": {"min": 1.75, "max": 2.25}},
@@ -440,7 +426,7 @@ def get_Connections(params):
         "connection_type":"divergent",
         "synapse_model": "AMPA_syn",
         "mask": {"circular": {"radius": 2.0 * dpcS}},
-        "kernel": {"gaussian": {"p_center": 1.0/2., "sigma": 7.5 * dpcS}},
+        "kernel": {"gaussian": {"p_center": 1.0, "sigma": 7.5 * dpcS}},
         #"weights": 2.0, # original
         #"weights": 2.0 * weight_gain,
         "weights": 1.0 * weight_gain, # keiko
@@ -472,7 +458,7 @@ def get_Connections(params):
         "connection_type":"divergent",
         "synapse_model": "GABA_A_syn",
         "mask": {"circular": {"radius": 7.0 * dpcS}},
-        "kernel": {"gaussian": {"p_center": 0.25/2., "sigma": 7.5 * dpcS}},
+        "kernel": {"gaussian": {"p_center": 0.25, "sigma": 7.5 * dpcS}},
         #"weights": 1.0,  # original
         "weights": 1.0 * weight_gain,
         #"weights": 1.5 * weight_gain, # keiko
@@ -483,20 +469,18 @@ def get_Connections(params):
 
     for conn in [{"sources": {"model": "L23_inh"}, "targets": {"model": "L23_exc"},
                   #"synapse_model": "GABA_B_syn", "mask": {"circular": {"radius": 1.0 * dpcS}}, "kernel": 0.3}, #original
-                  "synapse_model": "GABA_B_syn", "mask": {"circular": {"radius": 2.0 * dpcS}}, "kernel": 0.3/2.},  #keiko
+                  "synapse_model": "GABA_B_syn", "mask": {"circular": {"radius": 2.0 * dpcS}}, "kernel": 0.3},  #keiko
                  {"sources": {"model": "L23_inh"}, "targets": {"model": "L4_exc"},
                   #"synapse_model": "GABA_B_syn", "mask": {"circular": {"radius": 1.0 * dpcS}}, "kernel": 0.3},  #original
-                  "synapse_model": "GABA_B_syn", "mask": {"circular": {"radius": 2.0 * dpcS}}, "kernel": 0.3/2.},  # keiko
+                  "synapse_model": "GABA_B_syn", "mask": {"circular": {"radius": 2.0 * dpcS}}, "kernel": 0.3},  # keiko
                  {"sources": {"model": "L23_inh"}, "targets": {"model": "L56_exc"},
                   #"synapse_model": "GABA_B_syn", "mask": {"circular": {"radius": 1.0 * dpcS}}, "kernel": 0.3}]:
-                  "synapse_model": "GABA_B_syn", "mask": {"circular": {"radius": 2.0 * dpcS}}, "kernel": 0.3/2.}]:  # keiko
+                  "synapse_model": "GABA_B_syn", "mask": {"circular": {"radius": 2.0 * dpcS}}, "kernel": 0.3}]:  # keiko
 
         ndict = Vs_intracortical_inhibitory_base.copy()
         ndict.update(conn)
         ccConnections.append(ndict)
 
-    Vs_intracortical_cross_ori_inhibitory_base = Vs_intracortical_inhibitory_base.copy()
-    Vs_intracortical_cross_ori_inhibitory_base["kernel"]["gaussian"]["p_center"] *= 2.
     for conn in [{"sources": {"model": "L23_inh"}, "targets": {"model": "L23_exc"}},
                  #{"sources": {"model": "L23_inh"}, "targets": {"model": "L23_inh"}},  #original
                  #{"sources": {"model": "L23_inh"}, "targets": {"model": "L23_inh"}, "weights": 1.0 * weight_gain}, # keiko
@@ -509,30 +493,16 @@ def get_Connections(params):
                  #{"sources": {"model": "L56_inh"}, "targets": {"model": "L56_inh"}} ]: #original
                  #{"sources": {"model": "L56_inh"}, "targets": {"model": "L56_inh"}, "weights": 1.0 * weight_gain}]:  # keiko
                  {"sources": {"model": "L56_inh"}, "targets": {"model": "L56_inh"}, "weights": 0.5 * weight_gain}]:  # keiko nov22
-        ndict = Vs_intracortical_cross_ori_inhibitory_base.copy()
+        ndict = Vs_intracortical_inhibitory_base.copy()
         ndict.update(conn)
         ccConnections.append(ndict)
         ccxConnections.append(ndict)
 
-    # Leonardo:
-    # For connections within populations with same orientation selectivity, connect twice so that it is
-    # easier to scramble network and remove orientation selectivity if scramble = True.
-    # Notice: probabilities have been divided by 2, so the final result should be the same
-    # as before when scrambled == False, as long allow_multapses == False.
 
     #! Cortico-cortical, same orientation
     [allconns.append(['Vs_horizontal','Vs_horizontal',c]) for c in ccConnections]
     [allconns.append(['Vs_vertical','Vs_vertical',c]) for c in ccConnections]
     [allconns.append(['Vs_cross','Vs_cross',c]) for c in ccConnections]
-
-    if params['scrambled']:
-        [allconns.append(['Vs_horizontal','Vs_vertical',c]) for c in ccConnections]
-        [allconns.append(['Vs_vertical','Vs_horizontal',c]) for c in ccConnections]
-        [allconns.append(['Vs_cross','Vs_cross',c]) for c in ccConnections]
-    else:
-        [allconns.append(['Vs_horizontal','Vs_horizontal',c]) for c in ccConnections]
-        [allconns.append(['Vs_vertical','Vs_vertical',c]) for c in ccConnections]
-        [allconns.append(['Vs_cross','Vs_cross',c]) for c in ccConnections]
 
     #! Cortico-cortical, cross-orientation
     [allconns.append(['Vs_horizontal','Vs_vertical',c]) for c in ccxConnections]
@@ -551,7 +521,7 @@ def get_Connections(params):
     Vp_Vs_forward_interareal_base = {
         "connection_type":"convergent",
         "sources": {"model": "L23_exc"},
-        "kernel": 0.8/2.,
+        "kernel": 0.8,
         #"weights": 1.0, # original
         "weights": 1.0 * weight_gain,
         "delays": {"uniform": {"min": 2.75, "max": 3.25}},
@@ -579,25 +549,12 @@ def get_Connections(params):
 
     allconns += [ (c[0], c[1], updateDicts(Vp_Vs_forward_interareal_base, c[2])) for c in fwdInterConns ]
 
-    if params['scrambled']:
-        for idx, con in enumerate(fwdInterConns):
-            if con[1] == 'Vs_horizontal':
-                x = list(fwdInterConns[idx])
-                x[1] = 'Vs_vertical'
-                fwdInterConns[idx] = tuple(x)
-            if con[1] == 'Vs_vertical':
-                x = list(fwdInterConns[idx])
-                x[1] = 'Vs_horizontal'
-                fwdInterConns[idx] = tuple(x)
-
-    allconns += [ (c[0], c[1], updateDicts(Vp_Vs_forward_interareal_base, c[2])) for c in fwdInterConns ]
-
     # Backward interareal connections (mask in Vp, thus scaling with dpcP)
     Vs_Vp_backward_interareal_base = {
         "connection_type":"divergent",
         "sources": {"model": "L56_exc"},
         "mask": {"circular": {"radius": 12.0 * dpcP}},
-        "kernel": {"gaussian": {"p_center": 0.1/2., "sigma": 7.5 * dpcP}},
+        "kernel": {"gaussian": {"p_center": 0.1, "sigma": 7.5 * dpcP}},
         #"weights": 1.0, # original
         "weights": 1.0 * weight_gain,
         "delays": {"uniform": {"min": 5.5, "max": 6.5}},
@@ -624,18 +581,6 @@ def get_Connections(params):
 
     allconns += [ (c[0], c[1], updateDicts(Vs_Vp_backward_interareal_base, c[2])) for c in bckInterConns ]
 
-    if params['scrambled']:
-        for idx, con in enumerate(bckInterConns):
-            if con[1] == 'Vs_horizontal':
-                x = list(fwdInterConns[idx])
-                x[1] = 'Vs_vertical'
-                fwdInterConns[idx] = tuple(x)
-            if con[1] == 'Vs_vertical':
-                x = list(fwdInterConns[idx])
-                x[1] = 'Vs_horizontal'
-                fwdInterConns[idx] = tuple(x)
-
-    allconns += [ (c[0], c[1], updateDicts(Vs_Vp_backward_interareal_base, c[2])) for c in bckInterConns ]
 
     # --------------------------------------------------------------------#
     # ---------- THALAMUS ----------------------------------------------- #
@@ -787,6 +732,16 @@ def get_Connections(params):
         "allow_multapses": False
     }
 
+    # if params['scrambled']:
+    #     # Horizontally tuned
+    #     Vp_Thalamocortical_base.update({"mask": {"rectangular": {"lower_left" : [-8.0*dpcP, -8.0*dpcP],
+    #                                                              "upper_right": [ 8.0*dpcP,  8.0*dpcP]}}})
+    #     for conn in [{"targets": {"model": "L4_exc" }, "kernel": 0.015},
+    #                  {"targets": {"model": "L56_exc"}, "kernel": 0.009}]:
+    #         Vp_Thalamocortical_base.update(conn)
+    #         allconns.append(['Tp_layer','Vp_horizontal', Vp_Thalamocortical_base.copy()])
+    #         allconns.append(['Tp_layer','Vp_vertical', Vp_Thalamocortical_base.copy()])
+    # else:
     # Horizontally tuned
     Vp_Thalamocortical_base.update({"mask": {"rectangular": {"lower_left" : [-4.0*dpcP, -1.0*dpcP],
                                                              "upper_right": [ 4.0*dpcP,  1.0*dpcP]}}})
