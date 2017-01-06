@@ -443,7 +443,7 @@ def simulation(Params):
         rows = 9
         cols = 2
 
-        fig = plt.figure()
+        fig = plt.figure(num=None, figsize=(13, 24), dpi=100)
         fig.subplots_adjust(hspace=0.4)
 
         # Plot A: membrane potential rasters
@@ -480,15 +480,16 @@ def simulation(Params):
 
         # Plot C: topographical activity of the vertical and horizontal layers
 
-        recorded_models = [(Vp_vertical,'L23_exc')]
 
-        labels = ["Vertical"]
         if Params.has_key('start_membrane_potential') and  Params.has_key('end_membrane_potential'):
             start = Params['start_membrane_potential']
             stop = Params['end_membrane_potential']
         else:
             start = 650.0
             stop = 660.0
+
+        recorded_models = [(Vp_vertical,'L23_exc')]
+        labels = ["Vertical"]
         plotting.topographic_representation(fig,
                                             recorders,
                                             recorded_models,
@@ -506,15 +507,11 @@ def simulation(Params):
         recorded_models = [(Vp_horizontal,'L23_exc')]
 
         labels = ["Horizontal"]
-        start = 130.0
-        stop = 140.0
-        #start = 650.0
-        #stop = 660.0
 
         plotting.topographic_representation(fig,recorders,recorded_models,labels,Params['Np'],np.sum(Params['intervals']),Params['resolution'],rows,cols,start,stop,8,1)
 
+        fig.savefig(Params['data_folder'] + 'figure3.png', dpi=100)
         plt.show()
-
 
 
     # Plot D: movie

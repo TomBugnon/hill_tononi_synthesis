@@ -364,8 +364,6 @@ def get_Connections(params):
         ccConnections.append(ndict)
 
     # for different orientation, inh->inh = 0.75
-    Vp_intracortical_cross_ori_inhibitory_base = Vp_intracortical_inhibitory_base.copy()
-    Vp_intracortical_cross_ori_inhibitory_base["kernel"]["gaussian"]["p_center"] *= p_ratio
     for conn in [{"sources": {"model": "L23_inh"}, "targets": {"model": "L23_exc"}},
                  # {"sources": {"model": "L23_inh"}, "targets": {"model": "L23_inh"}},  #original
                  {"sources": {"model": "L23_inh"}, "targets": {"model": "L23_inh"}, "weights": 0.75 * weight_gain},
@@ -377,7 +375,9 @@ def get_Connections(params):
                  {"sources": {"model": "L56_inh"}, "targets": {"model": "L56_exc"}},
                  # {"sources": {"model": "L56_inh"}, "targets": {"model": "L56_inh"}}]:  #original
                  {"sources": {"model": "L56_inh"}, "targets": {"model": "L56_inh"}, "weights": 0.75 * weight_gain}]:  # keiko
-        ndict = Vp_intracortical_cross_ori_inhibitory_base.copy()
+        ndict = Vp_intracortical_inhibitory_base.copy()
+        # Leonardo: Cross-population connections are only executed once below, so no p_ratio necessary
+        Vp_intracortical_inhibitory_base["kernel"]["gaussian"]["p_center"] *= p_ratio
         ndict.update(conn)
         ccxConnections.append(ndict)
 
@@ -499,8 +499,6 @@ def get_Connections(params):
         ndict.update(conn)
         ccConnections.append(ndict)
 
-    Vs_intracortical_cross_ori_inhibitory_base = Vs_intracortical_inhibitory_base.copy()
-    Vs_intracortical_cross_ori_inhibitory_base["kernel"]["gaussian"]["p_center"] *= p_ratio
     for conn in [{"sources": {"model": "L23_inh"}, "targets": {"model": "L23_exc"}},
                  #{"sources": {"model": "L23_inh"}, "targets": {"model": "L23_inh"}},  #original
                  #{"sources": {"model": "L23_inh"}, "targets": {"model": "L23_inh"}, "weights": 1.0 * weight_gain}, # keiko
@@ -513,9 +511,10 @@ def get_Connections(params):
                  #{"sources": {"model": "L56_inh"}, "targets": {"model": "L56_inh"}} ]: #original
                  #{"sources": {"model": "L56_inh"}, "targets": {"model": "L56_inh"}, "weights": 1.0 * weight_gain}]:  # keiko
                  {"sources": {"model": "L56_inh"}, "targets": {"model": "L56_inh"}, "weights": 0.5 * weight_gain}]:  # keiko nov22
-        ndict = Vs_intracortical_cross_ori_inhibitory_base.copy()
+        ndict = Vs_intracortical_inhibitory_base.copy()
         ndict.update(conn)
         ccConnections.append(ndict)
+        ndict["kernel"]["gaussian"]["p_center"] *= p_ratio
         ccxConnections.append(ndict)
 
     # Leonardo:
@@ -533,11 +532,11 @@ def get_Connections(params):
         if params['scrambled']:
             [allconns.append(['Vs_horizontal','Vs_vertical',c]) for c in ccConnections]
             [allconns.append(['Vs_vertical','Vs_horizontal',c]) for c in ccConnections]
-            [allconns.append(['Vs_cross','Vs_cross',c]) for c in ccConnections]
         else:
             [allconns.append(['Vs_horizontal','Vs_horizontal',c]) for c in ccConnections]
             [allconns.append(['Vs_vertical','Vs_vertical',c]) for c in ccConnections]
-            [allconns.append(['Vs_cross','Vs_cross',c]) for c in ccConnections]
+
+        [allconns.append(['Vs_cross','Vs_cross',c]) for c in ccConnections]
 
     #! Cortico-cortical, cross-orientation
     [allconns.append(['Vs_horizontal','Vs_vertical',c]) for c in ccxConnections]
@@ -587,11 +586,11 @@ def get_Connections(params):
     if p_ratio > 1.:
         if params['scrambled']:
             for idx, con in enumerate(fwdInterConns):
-                if con[1] == 'Vs_horizontal':
+                if con[0] == 'Vp_horizontal' and con[1] == 'Vs_horizontal' :
                     x = list(fwdInterConns[idx])
                     x[1] = 'Vs_vertical'
                     fwdInterConns[idx] = tuple(x)
-                if con[1] == 'Vs_vertical':
+                if con[0] == 'Vp_vertical' and con[1] == 'Vs_vertical' :
                     x = list(fwdInterConns[idx])
                     x[1] = 'Vs_horizontal'
                     fwdInterConns[idx] = tuple(x)
@@ -633,13 +632,13 @@ def get_Connections(params):
     if p_ratio > 1.:
         if params['scrambled']:
             for idx, con in enumerate(bckInterConns):
-                if con[1] == 'Vs_horizontal':
+                if con[0] == 'Vs_horizontal' and con[1] == 'Vp_horizontal' :
                     x = list(fwdInterConns[idx])
-                    x[1] = 'Vs_vertical'
+                    x[1] = 'Vp_vertical'
                     fwdInterConns[idx] = tuple(x)
-                if con[1] == 'Vs_vertical':
+                if con[0] == 'Vs_vertical' and con[1] == 'Vp_vertical' :
                     x = list(fwdInterConns[idx])
-                    x[1] = 'Vs_horizontal'
+                    x[1] = 'Vp_horizontal'
                     fwdInterConns[idx] = tuple(x)
 
         allconns += [ (c[0], c[1], updateDicts(Vs_Vp_backward_interareal_base, c[2])) for c in bckInterConns ]
