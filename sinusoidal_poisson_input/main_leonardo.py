@@ -17,6 +17,9 @@ reload(figure_4_plot)
 import figure_3_plot
 reload(figure_3_plot)
 
+import test_scrambled_intact
+reload(test_scrambled_intact)
+
 sim_fig_3 = True
 sim_fig_4 = False
 
@@ -46,18 +49,18 @@ if sim_fig_4:
 if sim_fig_3:
 
 
-    root_data_folder = '/data/nsdm/'
+    root_data_folder = '/data/nsdm'
 
-    network ='network_full_keiko'
-    #network = 'network_full_leonardo'
+    #network ='network_full_keiko'
+    network = 'network_full_leonardo'
     #network = 'network_full_leonardo2'
 
     # scramble network connections? only works with network_full_leonardo!
-    scramble = True
-    # scramble = False
+    # scramble = True
+    scramble = False
 
-    # structured_input = True
-    structured_input = False
+    structured_input = True
+    # structured_input = False
     ret_rate = 100.0
 
     if structured_input:
@@ -67,12 +70,18 @@ if sim_fig_3:
         data_folder = '%s/vertical_rate%d_%s_%s/' % (root_data_folder, int(ret_rate), network, 'scrambled' if scramble else 'intact')
     else:
         lambda_dg = -1.0
-        input_flag = False
-        data_folder = '%s/random_rate%d_%s_%s/' % (root_data_folder, int(ret_rate), network, 'scrambled' if scramble else 'intact')
+        # input_flag = False
+        input_flag = True
+        if input_flag:
+            data_folder = '%s/random_rate%d_%s_%s/' % (root_data_folder, int(ret_rate), network, 'scrambled' if scramble else 'intact')
+        else:
+            data_folder = '%s/spontaneous_rate%d_%s_%s/' % (root_data_folder, int(ret_rate), network, 'scrambled' if scramble else 'intact')
 
     Params = {
         'show_main_figure' : True,
-        'show_V4_num_conn_figure' : True,
+        'start_membrane_potential' : 130.0,
+        'end_membrane_potential' : 140.0,
+        'show_V4_num_conn_figure' : False,
         'show_V4_connectivity_figure' : False,
         'network' : network,
         'Np': 40,
@@ -85,7 +94,7 @@ if sim_fig_3:
         'threads': 12,
         #'intervals': [100.0, 250.0, 650.0],  # original
         #'intervals': [5000.0],  # keiko
-        'intervals': [5000.0],  # leonardo
+        'intervals': [500.0],  # leonardo
         'resolution': 1.0,
         'phi_dg': 0.0,  # vertical
         #'phi_dg': 0.5*np.pi, # horizontal
@@ -100,5 +109,6 @@ if sim_fig_3:
 
     # Run simulation of figure 3
     figure_3_plot.simulation(Params)
+    # test_scrambled_intact.simulation(Params)
 
 

@@ -47,98 +47,104 @@ def simulation(Params):
     #! Import network
     #! =================
 
-    # NEST Kernel and Network settings
-    nest.ResetKernel()
-    nest.ResetNetwork()
-    nest.SetKernelStatus({"local_num_threads": Params['threads'],'resolution': Params['resolution']})
-    nest.SetStatus([0],{'print_time': True})
-
-    # initialize random seed
-    import time
-    msd = int(round(time.time() * 1000))
-    nest.SetKernelStatus({'grng_seed' : msd})
-    nest.SetKernelStatus({'rng_seeds' : range(msd+Params['threads']+1, msd+2*Params['threads']+1)})
-
     import importlib
-    network = importlib.import_module(Params['network'])
-    reload(network)
-    models, layers, conns  = network.get_Network(Params)
-    # import network_full_keiko
-    # reload(network_full_keiko)
-    # models, layers, conns  = network_full_keiko.get_Network(Params)
+    import time
 
-    # Create models
-    for m in models:
-            nest.CopyModel(m[0], m[1], m[2])
+    #network_names = ['network_full_keiko',  'network_full_leonardo']
+    network_names = ['network_full_keiko',  'network_full_keiko']
 
-    # Create layers, store layer info in Python variable
-    for l in layers:
-            exec '%s = tp.CreateLayer(l[1])' % l[0]
+    colors = [[0,0,1,.5], [0,1,0,.5]]
+    fig, axs = plt.subplots(2,2)
+    for (inet, netname) in enumerate(network_names):
 
-    # Create connections, need to insert variable names
-    for c in conns:
-            eval('tp.ConnectLayers(%s,%s,c[2])' % (c[0], c[1]))
+        # NEST Kernel and Network settings
+        nest.ResetKernel()
+        nest.ResetNetwork()
+        nest.SetKernelStatus({"local_num_threads": Params['threads'],'resolution': Params['resolution']})
+        nest.SetStatus([0],{'print_time': True})
+
+        # initialize random seed
+        msd = int(round(time.time() * 1000))
+        nest.SetKernelStatus({'grng_seed' : msd})
+        nest.SetKernelStatus({'rng_seeds' : range(msd+Params['threads']+1, msd+2*Params['threads']+1)})
+
+        network = importlib.import_module(netname)
+        reload(network)
+        models, layers, conns  = network.get_Network(Params)
+        # import network_full_keiko
+        # reload(network_full_keiko)
+        # models, layers, conns  = network_full_keiko.get_Network(Params)
+
+        # Create models
+        for m in models:
+                nest.CopyModel(m[0], m[1], m[2])
+
+        # Create layers, store layer info in Python variable
+        for l in layers:
+                exec '%s = tp.CreateLayer(l[1])' % l[0]
+
+        # Create connections, need to insert variable names
+        for c in conns:
+                eval('tp.ConnectLayers(%s,%s,c[2])' % (c[0], c[1]))
 
 
-    # nest.DisconnectOneToOne(tp_node, tgt_map[0], {"synapse_model": "AMPA_syn"})
-    #nest.Disconnect([tp_node], tgt_map, 'one_to_one', {"synapse_model": "AMPA_syn"})
+        if Params.has_key('show_V4_num_conn_figure') and Params['show_V4_num_conn_figure']:
 
-    # Get target nodes for the vertical population
-    # tp_nodes = nest.GetLeaves(Tp_layer, local_only=True)[0]
+            horizontal_nodes = nest.GetLeaves(Vp_horizontal, properties={'model': 'L4_exc'}, local_only=True)[0]
+            vertical_nodes = nest.GetLeaves(Vp_vertical, properties={'model': 'L4_exc'}, local_only=True)[0]
 
-    if Params.has_key('show_V4_num_conn_figure') and Params['show_V4_num_conn_figure']:
+            print('Ploting #1')
+            n_conns_hor = []
+            for (idx, horizontal_node) in enumerate(horizontal_nodes):
+                tgt_map = []
+                this_conns = nest.GetConnections([horizontal_node], horizontal_nodes, synapse_model='AMPA_syn')
+                tgt_map.extend([conn[1] for conn in this_conns])
+                n_conns_hor.append(len(tgt_map))
 
-        horizontal_nodes = nest.GetLeaves(Vp_horizontal, properties={'model': 'L4_exc'}, local_only=True)[0]
-        vertical_nodes = nest.GetLeaves(Vp_vertical, properties={'model': 'L4_exc'}, local_only=True)[0]
+            plt.axes(axs[0,0])
+            plt.hist(n_conns_hor, range(0, max(n_conns_hor + [30])), fc=colors[inet])
+            plt.title('# of connections Vp(h) L4pyr -> Vp(h) L4Pyr')
 
-        n_conns_hor = []
-        for (idx, horizontal_node) in enumerate(horizontal_nodes):
-            tgt_map = []
-            this_conns = nest.GetConnections([horizontal_node], horizontal_nodes, synapse_model='AMPA_syn')
-            tgt_map.extend([conn[1] for conn in this_conns])
-            n_conns_hor.append(len(tgt_map))
+            print('Ploting #2')
+            n_conns_hor = []
+            for (idx, horizontal_node) in enumerate(horizontal_nodes):
+                tgt_map = []
+                this_conns = nest.GetConnections([horizontal_node], vertical_nodes, synapse_model='AMPA_syn')
+                tgt_map.extend([conn[1] for conn in this_conns])
+                n_conns_hor.append(len(tgt_map))
 
-        plt.figure()
-        plt.hist(n_conns_hor, range(0, max(n_conns_hor + [30])))
-        plt.title('# of connections Vp(h) L4pyr -> Vp(h) L4Pyr')
+                # nest.DisconnectOneToOne(tp_node, tgt_map[0], {"synapse_model": "AMPA_syn"})
+                #nest.Disconnect([tp_node], tgt_map, 'one_to_one', {"synapse_model": "AMPA_syn"})
 
-        n_conns_hor = []
-        for (idx, horizontal_node) in enumerate(horizontal_nodes):
-            tgt_map = []
-            this_conns = nest.GetConnections([horizontal_node], vertical_nodes, synapse_model='AMPA_syn')
-            tgt_map.extend([conn[1] for conn in this_conns])
-            n_conns_hor.append(len(tgt_map))
+            plt.axes(axs[0,1])
+            plt.hist(n_conns_hor, range(0, max(n_conns_hor + [30])), fc=colors[inet])
+            plt.title('# of connections Vp(h) L4pyr -> Vp(v) L4Pyr')
 
-            # nest.DisconnectOneToOne(tp_node, tgt_map[0], {"synapse_model": "AMPA_syn"})
-            #nest.Disconnect([tp_node], tgt_map, 'one_to_one', {"synapse_model": "AMPA_syn"})
+            print('Ploting #3')
+            n_conns_ver = []
+            for (idx, vertical_node) in enumerate(vertical_nodes):
+                tgt_map = []
+                this_conns = nest.GetConnections([vertical_node], vertical_nodes, synapse_model='AMPA_syn')
+                tgt_map.extend([conn[1] for conn in this_conns])
+                n_conns_ver.append(len(tgt_map))
 
-        plt.figure()
-        plt.hist(n_conns_hor, range(0, max(n_conns_hor + [30])))
-        plt.title('# of connections Vp(h) L4pyr -> Vp(v) L4Pyr')
+            plt.axes(axs[1,1])
+            plt.hist(n_conns_ver, range(0, max(n_conns_ver + [30])), fc=colors[inet])
+            plt.title('# of connections Vp(v) L4pyr -> Vp(v) L4Pyr')
 
-        n_conns_ver = []
-        for (idx, vertical_node) in enumerate(vertical_nodes):
-            tgt_map = []
-            this_conns = nest.GetConnections([vertical_node], vertical_nodes, synapse_model='AMPA_syn')
-            tgt_map.extend([conn[1] for conn in this_conns])
-            n_conns_ver.append(len(tgt_map))
+            print('Ploting #4')
+            n_conns_ver = []
+            for (idx, vertical_node) in enumerate(vertical_nodes):
+                tgt_map = []
+                this_conns = nest.GetConnections([vertical_node], horizontal_nodes, synapse_model='AMPA_syn')
+                tgt_map.extend([conn[1] for conn in this_conns])
+                n_conns_ver.append(len(tgt_map))
 
-        plt.figure()
-        plt.hist(n_conns_ver, range(0, max(n_conns_ver + [30])))
-        plt.title('# of connections Vp(v) L4pyr -> Vp(v) L4Pyr')
+            plt.axes(axs[1,0])
+            plt.hist(n_conns_ver, range(0, max(n_conns_ver + [30])), fc=colors[inet])
+            plt.title('# of connections Vp(v) L4pyr -> Vp(h) L4Pyr')
 
-        n_conns_ver = []
-        for (idx, vertical_node) in enumerate(vertical_nodes):
-            tgt_map = []
-            this_conns = nest.GetConnections([vertical_node], horizontal_nodes, synapse_model='AMPA_syn')
-            tgt_map.extend([conn[1] for conn in this_conns])
-            n_conns_ver.append(len(tgt_map))
-
-        plt.figure()
-        plt.hist(n_conns_ver, range(0, max(n_conns_ver + [30])))
-        plt.title('# of connections Vp(v) L4pyr -> Vp(h) L4Pyr')
-
-        plt.show()
+    plt.show()
 
     # Check connections
 
@@ -454,8 +460,8 @@ def simulation(Params):
         recorded_models = [(Vp_vertical,'L23_exc')]
 
         labels = ["Vertical"]
-        start = Params['start_membrane_potential']
-        stop = Params['end_membrane_potential']
+        start = 130.0
+        stop = 140.0
         #start = 650.0
         #stop = 660.0
         plotting.topographic_representation(fig,

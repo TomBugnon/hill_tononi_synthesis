@@ -56,8 +56,8 @@ if sim_fig_3:
     scramble = True
     # scramble = False
 
-    # structured_input = True
-    structured_input = False
+    structured_input = True
+    # structured_input = False
     ret_rate = 100.0
 
     if structured_input:
