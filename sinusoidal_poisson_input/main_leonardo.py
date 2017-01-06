@@ -79,8 +79,8 @@ if sim_fig_3:
 
     Params = {
         'show_main_figure' : True,
-        'start_membrane_potential' : 630.0,
-        'end_membrane_potential' : 640.0,
+        'start_membrane_potential' : 130.0,
+        'end_membrane_potential' : 140.0,
         'show_V4_num_conn_figure' : False,
         'show_V4_connectivity_figure' : False,
         'network' : network,

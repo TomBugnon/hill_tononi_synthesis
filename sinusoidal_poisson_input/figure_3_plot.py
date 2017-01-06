@@ -485,8 +485,8 @@ def simulation(Params):
             start = Params['start_membrane_potential']
             stop = Params['end_membrane_potential']
         else:
-            start = 650.0
-            stop = 660.0
+            start = 130.0
+            stop = 140.0
 
         recorded_models = [(Vp_vertical,'L23_exc')]
         labels = ["Vertical"]
