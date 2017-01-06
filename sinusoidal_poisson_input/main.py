@@ -85,6 +85,7 @@ if sim_fig_3:
         #'phi_dg': 0.5*np.pi, # horizontal
 
         'scrambled' : scramble, # scramble the connectivity: no invariance for horizontal/vertical stimulus
+        'load_connections_from_file': './scrambled_connection_Tp_Cortex.mat',
 
         'lambda_dg': lambda_dg,  # visSize / number_of_lines
         'input_flag': input_flag,

@@ -63,8 +63,8 @@ def simulation(Params):
     network = importlib.import_module(Params['network'])
     reload(network)
     models, layers, conns  = network.get_Network(Params)
-    # import network_full_keiko
-    # reload(network_full_keiko)
+    #import network_full_keiko
+    #reload(network_full_keiko)
     # models, layers, conns  = network_full_keiko.get_Network(Params)
 
     # Create models
@@ -78,6 +78,35 @@ def simulation(Params):
     # Create connections, need to insert variable names
     for c in conns:
             eval('tp.ConnectLayers(%s,%s,c[2])' % (c[0], c[1]))
+
+
+    if Params.has_key('load_connections_from_file') and Params['load_connections_from_file']:
+
+        if Params['scrambled']:
+            print('Scramble connections using file')
+            #sc = scipy.io.loadmat('./scrambled_connection_Tp_Cortex.mat')
+            sc = scipy.io.loadmat(Params['load_connections_from_file'])
+            pre = sc['scrambled_connections'][:, 0].astype(int).tolist()
+            post = sc['scrambled_connections'][:, 1].astype(int).tolist()
+            w = sc['scrambled_connections'][:, 2].tolist()
+            d = sc['scrambled_connections'][:, 3].tolist()
+        else:
+            #TODO set intact network
+            sc = scipy.io.loadmat(Params['load_connections_from_file'])
+            # sc =
+            # pre=
+            # post=
+            # w=
+            # d=
+
+        con_dict = {'rule': 'one_to_one'}
+        syn_dict = {"model": "ht_synapse",
+                    'receptor_type': 1,
+                    'weight': w,
+                    'delay': d,
+                    }
+        nest.Connect(pre, post, con_dict, syn_dict)
+
 
 
     # nest.DisconnectOneToOne(tp_node, tgt_map[0], {"synapse_model": "AMPA_syn"})
