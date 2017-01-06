@@ -483,10 +483,12 @@ def simulation(Params):
         recorded_models = [(Vp_vertical,'L23_exc')]
 
         labels = ["Vertical"]
-        start = Params['start_membrane_potential']
-        stop = Params['end_membrane_potential']
-        #start = 650.0
-        #stop = 660.0
+        if Params.has_key('start_membrane_potential') and  Params.has_key('end_membrane_potential'):
+            start = Params['start_membrane_potential']
+            stop = Params['end_membrane_potential']
+        else:
+            start = 650.0
+            stop = 660.0
         plotting.topographic_representation(fig,
                                             recorders,
                                             recorded_models,
