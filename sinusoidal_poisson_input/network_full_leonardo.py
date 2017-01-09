@@ -377,7 +377,7 @@ def get_Connections(params):
                  {"sources": {"model": "L56_inh"}, "targets": {"model": "L56_inh"}, "weights": 0.75 * weight_gain}]:  # keiko
         ndict = Vp_intracortical_inhibitory_base.copy()
         # Leonardo: Cross-population connections are only executed once below, so no p_ratio necessary
-        Vp_intracortical_inhibitory_base["kernel"]["gaussian"]["p_center"] *= p_ratio
+        ndict["kernel"]["gaussian"]["p_center"] *= p_ratio
         ndict.update(conn)
         ccxConnections.append(ndict)
 

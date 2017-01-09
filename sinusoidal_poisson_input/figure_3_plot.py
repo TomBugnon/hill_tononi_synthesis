@@ -433,6 +433,11 @@ def simulation(Params):
         nest.Simulate(t)
 
 
+    data_folder = Params['data_folder']
+
+    if not os.path.isdir(data_folder):
+        os.makedirs(data_folder)
+
     #! ====================
     #! Plot Results
     #! ====================
@@ -510,7 +515,7 @@ def simulation(Params):
 
         plotting.topographic_representation(fig,recorders,recorded_models,labels,Params['Np'],np.sum(Params['intervals']),Params['resolution'],rows,cols,start,stop,8,1)
 
-        fig.savefig(Params['data_folder'] + 'figure3.png', dpi=100)
+        fig.savefig(data_folder + 'figure3.png', dpi=100)
         plt.show()
 
 
@@ -532,10 +537,6 @@ def simulation(Params):
     # expdir = 'random_full/'
     # expdir = 'structured_full/'
     # data_folder = rootdir + expdir
-    data_folder = Params['data_folder']
-
-    if not os.path.isdir(data_folder):
-        os.makedirs(data_folder)
 
     # To save spike data, set pairs of population id and its name
     population_name = [ {'population': Retina_layer, 'name': 'Retina'},
