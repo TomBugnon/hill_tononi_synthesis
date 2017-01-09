@@ -179,7 +179,7 @@ def simulation(Params):
         Vp_hor_gids = tp.GetElement(Vp_horizontal, [0,0])
         n_Vp_hor = len(Vp_hor_gids)
 
-        f = [];
+        f = []
         for idx in range(n_Vp_hor):
             f.append(plt.figure())
 
