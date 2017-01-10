@@ -11,6 +11,7 @@
 import nest
 import nest.topology as tp
 import numpy as np
+import numpy.random as rd
 import os
 import matplotlib.pyplot as plt
 
@@ -82,23 +83,73 @@ def simulation(Params):
 
     if Params.has_key('load_connections_from_file') and Params['load_connections_from_file']:
 
-        if Params['scrambled']:
-            print('Scramble connections using file')
-            #sc = scipy.io.loadmat('./scrambled_connection_Tp_Cortex.mat')
-            sc = scipy.io.loadmat(Params['load_connections_from_file'])
-            pre = sc['scrambled_connections'][:, 0].astype(int).tolist()
-            post = sc['scrambled_connections'][:, 1].astype(int).tolist()
-            w = sc['scrambled_connections'][:, 2].tolist()
-            d = sc['scrambled_connections'][:, 3].tolist()
-        else:
-            #TODO set intact network
-            sc = scipy.io.loadmat(Params['load_connections_from_file'])
-            # sc =
-            # pre=
-            # post=
-            # w=
-            # d=
+        scramble_populations = [(Vp_vertical, 'Vp_vertical'),
+                                (Vp_horizontal, 'Vp_horizontal')]
+        scramble_layers = ['L23_exc',
+                           'L23_inh',
+                           'L4_exc',
+                           'L4_inh',
+                           'L56_exc',
+                           'L56_inh']
 
+        # Get min &max index of each layer
+        h_min_idx = {}
+        h_max_idx = {}
+        v_min_idx = {}
+        v_max_idx = {}
+        for tmp_model in scramble_layers:
+            tmp_h = nest.GetLeaves(Vp_horizontal, properties={'model': tmp_model}, local_only=True)[0]
+            tmp_v = nest.GetLeaves(Vp_vertical, properties={'model': tmp_model}, local_only=True)[0]
+            h_min_idx[tmp_model] = min(tmp_h)
+            h_max_idx[tmp_model] = max(tmp_h)
+            v_min_idx[tmp_model] = min(tmp_v)
+            v_max_idx[tmp_model] = max(tmp_v)
+
+        # Load intact network data from file
+        # TODO load all connection files (use Params['load_...'], get all filenames automatically, set for-loop)
+        connections_filename = '/mnt/fujiiNAS/TononiLab/experimental_data_Tokyo/junk_data/vertical_rate20_network_full_keiko2_scrambled/' + 'connection_Tp_AMPA_syn.dat'
+        src_network = np.loadtxt(open(connections_filename,'rb'))
+
+        # Get original connectivity data
+        pre = src_network[:, 0].astype(int).tolist()
+        post = src_network[:, 1].astype(int).tolist()
+        w = src_network[:, 2].tolist()
+        d = src_network[:, 3].tolist()
+
+        if Params['scrambled']:
+
+            scrambled_post = []
+
+            for tmp_model in scramble_layers:
+
+                # Count the number of connections in the original(intact) network
+                num_post_h = len( post[(post>h_min_idx[tmp_model]) & (post<h_max_idx[tmp_model])] )
+                num_post_v = len( post[(post>v_min_idx[tmp_model]) & (post<v_max_idx[tmp_model])] )
+
+                # Create scrambled post index
+                if num_post_h + num_post_v > 0:
+
+                    # Assign the same number of connections for horizontal population and vertical population
+                    num_all = num_post_h + num_post_v
+                    num_scrambled_h = round(num_all/2)
+                    num_scrambled_v = num_all - num_scrambled_h
+
+                    # Choose post neuron index randomly
+                    scrambled_h_idx = rd.randint(low =h_min_idx[tmp_model],
+                                                 high=h_max_idx[tmp_model],
+                                                 size=[num_scrambled_h,1])
+                    scrambled_v_idx = rd.randint(low =v_min_idx[tmp_model],
+                                                 high=v_max_idx[tmp_model],
+                                                 size=[num_scrambled_v, 1])
+
+                    # Create scrambled post index
+                    tmp_post = np.append(scrambled_h_idx, scrambled_v_idx).tolist()
+
+                scrambled_post.append(tmp_post)
+
+            post = scrambled_post
+
+        # Connect
         con_dict = {'rule': 'one_to_one'}
         syn_dict = {"model": "ht_synapse",
                     'receptor_type': 1,
@@ -597,6 +648,9 @@ def simulation(Params):
             filename = data_folder + 'spike_' + p_name + '_' + model + '.pickle'
             pickle.dump(spikes, open(filename, 'w'))
             scipy.io.savemat(data_folder + '/spike_' + p_name + '_' + model + '.mat', mdict={'senders': spikes['senders'], 'times': spikes['times']})
+
+            filename_AMPA = data_folder + 'connection_' + p_name + '_AMPA_syn' + '.dat'
+            tp.DumpLayerConnections(population, 'AMPA_syn', filename_AMPA)
 
             '''
             filename_AMPA = data_folder + 'connection_' + p_name + '_AMPA_syn' + '.dat'
