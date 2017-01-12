@@ -97,6 +97,7 @@ def simulation(Params):
         h_max_idx = {}
         v_min_idx = {}
         v_max_idx = {}
+        target_neurons = []
         for tmp_model in scramble_layers:
             tmp_h = nest.GetLeaves(Vp_horizontal, properties={'model': tmp_model}, local_only=True)[0]
             tmp_v = nest.GetLeaves(Vp_vertical, properties={'model': tmp_model}, local_only=True)[0]
@@ -104,61 +105,127 @@ def simulation(Params):
             h_max_idx[tmp_model] = max(tmp_h)
             v_min_idx[tmp_model] = min(tmp_v)
             v_max_idx[tmp_model] = max(tmp_v)
+            target_neurons = target_neurons + range(h_min_idx[tmp_model], h_max_idx[tmp_model]+1) + range(v_min_idx[tmp_model], v_max_idx[tmp_model]+1)
 
         # Load intact network data from file
         # TODO load all connection files (use Params['load_...'], get all filenames automatically, set for-loop)
-        connections_filename = '/mnt/fujiiNAS/TononiLab/experimental_data_Tokyo/junk_data/vertical_rate20_network_full_keiko2_scrambled/' + 'connection_Tp_AMPA_syn.dat'
+        connections_filename = '/mnt/fujiiNAS/TononiLab/experimental_data_Tokyo/junk_data/vertical_rate20_network_full_keiko2_scrambled/' + 'connection_Vp_h_AMPA_syn.dat'
         src_network = np.loadtxt(open(connections_filename,'rb'))
 
         # Get original connectivity data
-        pre = src_network[:, 0].astype(int).tolist()
-        post = src_network[:, 1].astype(int).tolist()
-        w = src_network[:, 2].tolist()
-        d = src_network[:, 3].tolist()
+        np_pre = src_network[:, 0].astype(int)
+        np_post = src_network[:, 1].astype(int)
+        np_w = src_network[:, 2]
+        np_d = src_network[:, 3]
 
         if Params['scrambled']:
 
-            scrambled_post = []
+            # Preserve the original structure if
+            # -- pre neruons are not in target populations (i.e. scramble_layers)
+            # -- OR
+            # -- post neurons are not in target populations(i.e. scramble_layers)
+            preserved_rows = np.where( ~np.in1d(np_pre,target_neurons) | ~np.in1d(np_post,target_neurons) )[0]
+            preserved_pre = np_pre[preserved_rows]
+            preserved_post = np_post[preserved_rows]
+            preserved_w = np_w[preserved_rows]
+            preserved_d = np_d[preserved_rows]
 
-            for tmp_model in scramble_layers:
+            if len(preserved_rows) < len(np_pre):
 
-                # Count the number of connections in the original(intact) network
-                num_post_h = len( post[(post>h_min_idx[tmp_model]) & (post<h_max_idx[tmp_model])] )
-                num_post_v = len( post[(post>v_min_idx[tmp_model]) & (post<v_max_idx[tmp_model])] )
+                scrambled_pre = []
+                scrambled_post = []
+                scrambled_w = []
+                scrambled_d = []
 
-                # Create scrambled post index
-                if num_post_h + num_post_v > 0:
+                for tmp_model_pre in scramble_layers:
 
-                    # Assign the same number of connections for horizontal population and vertical population
-                    num_all = num_post_h + num_post_v
-                    num_scrambled_h = round(num_all/2)
-                    num_scrambled_v = num_all - num_scrambled_h
+                    for tmp_model_post in scramble_layers:
 
-                    # Choose post neuron index randomly
-                    scrambled_h_idx = rd.randint(low =h_min_idx[tmp_model],
-                                                 high=h_max_idx[tmp_model],
-                                                 size=[num_scrambled_h,1])
-                    scrambled_v_idx = rd.randint(low =v_min_idx[tmp_model],
-                                                 high=v_max_idx[tmp_model],
-                                                 size=[num_scrambled_v, 1])
+                        # Get row index such that pre_neuron is in "tmp_model_pre"
+                        tmp_rows_pre_h = np.where(np.in1d(np_pre, range(h_min_idx[tmp_model_pre], h_max_idx[tmp_model_pre]+1)))
+                        tmp_rows_pre_v = np.where(np.in1d(np_pre, range(v_min_idx[tmp_model_pre], v_max_idx[tmp_model_pre]+1)))
 
-                    # Create scrambled post index
-                    tmp_post = np.append(scrambled_h_idx, scrambled_v_idx).tolist()
+                        # Get connectivity data such that pre neuron is in "tmp_model_pre"
+                        tmp_pre = np_pre[np.append(tmp_rows_pre_h, tmp_rows_pre_v)]
+                        tmp_w = np_w[np.append(tmp_rows_pre_h, tmp_rows_pre_v)]
+                        tmp_d = np_d[np.append(tmp_rows_pre_h, tmp_rows_pre_v)]
 
-                scrambled_post.append(tmp_post)
+                        # Create scrambled post index
+                        tmp_post = []
+                        num_pre_h = len(tmp_rows_pre_h)
+                        num_pre_v = len(tmp_rows_pre_v)
 
-            post = scrambled_post
+                        # --- pre : population = horizontal, model = "tmp_model_pre"
+                        # --- post: population = horizontal(1/2)+vertical(1/2), model = "tmp_model_post"
+                        if num_pre_h > 0:
+                            # Assign the same number of connections for horizontal population and vertical population
+                            num_scrambled_h = int(round(num_pre_h / 2))
+                            num_scrambled_v = num_pre_h - num_scrambled_h
 
-        # Connect
-        con_dict = {'rule': 'one_to_one'}
-        syn_dict = {"model": "ht_synapse",
-                    'receptor_type': 1,
-                    'weight': w,
-                    'delay': d,
-                    }
-        nest.Connect(pre, post, con_dict, syn_dict)
+                            # Choose post neuron index randomly
+                            scrambled_h_idx = rd.randint(low =h_min_idx[tmp_model_post],
+                                                         high=h_max_idx[tmp_model_post],
+                                                         size=[num_scrambled_h, 1])
+                            scrambled_v_idx = rd.randint(low =v_min_idx[tmp_model_post],
+                                                         high=v_max_idx[tmp_model_post],
+                                                         size=[num_scrambled_v, 1])
 
+                            # append scrambled post index
+                            tmp_post = tmp_post + np.append(scrambled_h_idx, scrambled_v_idx).tolist()
 
+                        # --- pre : population = vertical, model = "tmp_model_pre"
+                        # --- post: population = horizontal(1/2)+vertical(1/2), model = "tmp_model_post"
+                        if num_pre_v > 0:
+                            # Assign the same number of connections for horizontal population and vertical population
+                            num_scrambled_h = int(round(num_pre_v / 2))
+                            num_scrambled_v = num_pre_v - num_scrambled_h
+
+                            # Choose post neuron index randomly
+                            scrambled_h_idx = rd.randint(low =h_min_idx[tmp_model_post],
+                                                         high=h_max_idx[tmp_model_post],
+                                                         size=[num_scrambled_h, 1])
+                            scrambled_v_idx = rd.randint(low =v_min_idx[tmp_model_post],
+                                                         high=v_max_idx[tmp_model_post],
+                                                         size=[num_scrambled_v, 1])
+
+                            # append scrambled post index
+                            tmp_post = tmp_post + np.append(scrambled_h_idx, scrambled_v_idx).tolist()
+
+                        scrambled_pre = scrambled_pre + tmp_pre
+                        scrambled_post = scrambled_post + tmp_post
+                        scrambled_w = scrambled_w + tmp_w
+                        scrambled_d = scrambled_d +tmp_d
+
+                # append preserved connection data
+                scrambled_pre = scrambled_pre + preserved_pre
+                scrambled_post = scrambled_post + preserved_post
+                scrambled_w = scrambled_w + preserved_w
+                scrambled_d = scrambled_d + preserved_d
+
+            # Connect
+            con_dict = {'rule': 'one_to_one'}
+            syn_dict = {"model": "ht_synapse",
+                        'receptor_type': 1,
+                        'weight': scrambled_w,
+                        'delay': scrambled_d,
+                        }
+            nest.Connect(scrambled_pre, scrambled_post, con_dict, syn_dict)
+
+        else:
+            # just convert data type(ndarray->list) and connect based on the original data
+            pre = np_pre.tolist()
+            post = np_post.tolist()
+            w = np_w.tolist()
+            d = np_d.tolist()
+
+            # Connect
+            con_dict = {'rule': 'one_to_one'}
+            syn_dict = {"model": "ht_synapse",
+                        'receptor_type': 1,
+                        'weight': w,
+                        'delay': d,
+                        }
+            nest.Connect(pre, post, con_dict, syn_dict)
 
     # nest.DisconnectOneToOne(tp_node, tgt_map[0], {"synapse_model": "AMPA_syn"})
     #nest.Disconnect([tp_node], tgt_map, 'one_to_one', {"synapse_model": "AMPA_syn"})

@@ -88,7 +88,8 @@ if sim_fig_3:
 
         'scrambled' : scramble, # scramble the connectivity: no invariance for horizontal/vertical stimulus
         #'load_connections_from_file': './scrambled_connection_Tp_Cortex.mat',
-        'load_connections_from_file': False,
+        #'load_connections_from_file': False,
+        'load_connections_from_file': True,
         'show_V4_num_conn_figure': True,
 
         'lambda_dg': lambda_dg,  # visSize / number_of_lines
