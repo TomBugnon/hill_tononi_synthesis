@@ -7,9 +7,15 @@ function spike_mat = convert_nestspike2mat(filename, time_threshold_min, time_th
     src_data.senders(early_idx) = [];
     src_data.times(early_idx) = [];
 
-    late_idx = find(src_data.times>time_threshold_max);
-    src_data.senders(late_idx) = [];
-    src_data.times(late_idx) = [];
+    if time_threshold_max < 0
+        % round the maximum by 100 ms, assume the network rund in multiples
+        % of 100 ms
+        time_threshold_max = round(max(src_data.times)/100)*100;
+    else
+        late_idx = find(src_data.times>time_threshold_max);
+        src_data.senders(late_idx) = [];
+        src_data.times(late_idx) = [];
+    end
 
     % Convert index from NEST to MATLAB
     src_data.senders = src_data.senders - min(src_data.senders) + 1;

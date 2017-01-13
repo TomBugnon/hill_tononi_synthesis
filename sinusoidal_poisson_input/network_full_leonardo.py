@@ -164,13 +164,19 @@ def get_Models(params):
 # Layer properties
 def get_Layers(params):
 
+    if params.has_key('edge_wrap') and params['edge_wrap']:
+        edge_wrap = params['edge_wrap']
+    else:
+        # edge_wrap = True #original
+        edge_wrap = False #keiko
+
+
     # Primary pathway
     layerPropsP = {
     'rows'     : params['Np'],
     'columns'  : params['Np'],
     'extent'   : [params['visSize'], params['visSize']],
-    #'edge_wrap': True #original
-    'edge_wrap': False #keiko
+    'edge_wrap': edge_wrap
     }
 
     # Secondary pathway
@@ -178,8 +184,7 @@ def get_Layers(params):
     'rows'     : params['Ns'],
     'columns'  : params['Ns'],
     'extent'   : [params['visSize'], params['visSize']],
-    #'edge_wrap': True #original
-    'edge_wrap': False #keiko
+    'edge_wrap': edge_wrap
     }
 
     # Create layer dictionaries
@@ -208,11 +213,23 @@ def get_Layers(params):
     return layers
 
 
+def scramble_connections(dict, params):
+
+    v_size = params['visSize']
+    if params['scrambled']:
+        dict.update({"mask": {"rectangular": {"lower_left" : [-v_size/2., -v_size/2.],"upper_right": [-v_size/2., -v_size/2.]}}})
+        dict.update({"mask": {"rectangular": {"lower_left" : [-v_size/2., -v_size/2.],"upper_right": [-v_size/2., -v_size/2.]}}})
+
+
 # Connections between layers
 def get_Connections(params):
 
-    # p_ratio = 1.
-    p_ratio = 2.
+    # ratio to divide the probability in case of scrambled
+    # should be 2. because there are 2 orientations: vertical and horizontal
+    # but ratio 1. is a sanity check which connects only once, which has to the
+    # the same as no scrambling
+
+    p_ratio = params['p_ratio']
 
     # Scaling parameters from grid elements to visual angle
     dpcP = maskFactor * params['visSize'] / (params['Np'] - 1)
@@ -253,6 +270,8 @@ def get_Connections(params):
         "allow_autapses": False,
         "allow_multapses": False
     }
+    # Vp_horizontal_intralaminar_base = scramble_connections(Vp_horizontal_intralaminar_base,
+    #                                                        params)
     for conn in [#{"sources": {"model": "L23_exc"}, "targets": {"model": "L23_exc"}, "synapse_model": "NMDA_syn"}, #original
                  {"sources": {"model": "L23_exc"}, "targets": {"model": "L23_exc"}, "synapse_model": "NMDA_syn", "weights": 1.0*weight_gain}, # keiko
                  {"sources": {"model": "L23_exc"}, "targets": {"model": "L23_exc"}},
@@ -377,7 +396,7 @@ def get_Connections(params):
                  {"sources": {"model": "L56_inh"}, "targets": {"model": "L56_inh"}, "weights": 0.75 * weight_gain}]:  # keiko
         ndict = Vp_intracortical_inhibitory_base.copy()
         # Leonardo: Cross-population connections are only executed once below, so no p_ratio necessary
-        ndict["kernel"]["gaussian"]["p_center"] *= p_ratio
+        #Vp_intracortical_inhibitory_base["kernel"]["gaussian"]["p_center"] *= p_ratio #comment-out 1/9 keiko
         ndict.update(conn)
         ccxConnections.append(ndict)
 
@@ -403,6 +422,15 @@ def get_Connections(params):
     [allconns.append(['Vp_horizontal','Vp_vertical',c]) for c in ccxConnections]
     [allconns.append(['Vp_vertical','Vp_horizontal',c]) for c in ccxConnections]
 
+
+    #! keiko 2017/1/9
+    if p_ratio > 1.:
+        if params['scrambled']:
+            [allconns.append(['Vp_horizontal','Vp_horizontal',c]) for c in ccxConnections]
+            [allconns.append(['Vp_vertical','Vp_vertical',c]) for c in ccxConnections]
+        else:
+            [allconns.append(['Vp_horizontal','Vp_vertical',c]) for c in ccxConnections]
+            [allconns.append(['Vp_vertical','Vp_horizontal',c]) for c in ccxConnections]
 
     # --------------------------------------------------------------------#
     # ---------- SECONDARY VISUAL AREA ---------------------------------- #
@@ -514,7 +542,7 @@ def get_Connections(params):
         ndict = Vs_intracortical_inhibitory_base.copy()
         ndict.update(conn)
         ccConnections.append(ndict)
-        ndict["kernel"]["gaussian"]["p_center"] *= p_ratio
+        # ndict["kernel"]["gaussian"]["p_center"] *= p_ratio #--- comment-out by keiko 2017/1/9
         ccxConnections.append(ndict)
 
     # Leonardo:
@@ -539,12 +567,42 @@ def get_Connections(params):
         [allconns.append(['Vs_cross','Vs_cross',c]) for c in ccConnections]
 
     #! Cortico-cortical, cross-orientation
-    [allconns.append(['Vs_horizontal','Vs_vertical',c]) for c in ccxConnections]
-    [allconns.append(['Vs_horizontal','Vs_cross',c]) for c in ccxConnections]
-    [allconns.append(['Vs_vertical','Vs_horizontal',c]) for c in ccxConnections]
-    [allconns.append(['Vs_vertical','Vs_cross',c]) for c in ccxConnections]
-    [allconns.append(['Vs_cross','Vs_vertical',c]) for c in ccxConnections]
-    [allconns.append(['Vs_cross','Vs_horizontal',c]) for c in ccxConnections]
+
+    #--- original
+    #[allconns.append(['Vs_horizontal','Vs_vertical',c]) for c in ccxConnections]
+    #[allconns.append(['Vs_horizontal','Vs_cross',c]) for c in ccxConnections]
+    #[allconns.append(['Vs_vertical','Vs_horizontal',c]) for c in ccxConnections]
+    #[allconns.append(['Vs_vertical','Vs_cross',c]) for c in ccxConnections]
+    #[allconns.append(['Vs_cross','Vs_vertical',c]) for c in ccxConnections]
+    #[allconns.append(['Vs_cross','Vs_horizontal',c]) for c in ccxConnections]
+
+    #--- keiko 2017/1/9
+    [allconns.append(['Vs_horizontal', 'Vs_vertical', c]) for c in ccxConnections] # 1/2 H->V
+    [allconns.append(['Vs_vertical', 'Vs_horizontal', c]) for c in ccxConnections] # 1/2 V->H
+
+    if p_ratio > 1.:
+        if params['scrambled']:
+            [allconns.append(['Vs_horizontal', 'Vs_horizontal', c]) for c in ccxConnections] # 2/2 H->H
+            [allconns.append(['Vs_vertical', 'Vs_vertical', c]) for c in ccxConnections] # 2/2 V->V
+        else:
+            [allconns.append(['Vs_horizontal', 'Vs_vertical', c]) for c in ccxConnections] # 2/2 H->V
+            [allconns.append(['Vs_vertical', 'Vs_horizontal', c]) for c in ccxConnections] # 2/2 V->H
+
+    # Vs_cross population does not have orientation selective structure,
+    # so we can do same operation for both condition of "scramble==True" and "scramble==False"
+    # Because we devided p_center by p_ratio, we need to do the following operation for multiple times.
+    for i in range(0, int(p_ratio)):
+        [allconns.append(['Vs_horizontal', 'Vs_cross', c]) for c in ccxConnections]
+        [allconns.append(['Vs_horizontal', 'Vs_cross', c]) for c in ccxConnections]
+
+        [allconns.append(['Vs_vertical', 'Vs_cross', c]) for c in ccxConnections]
+        [allconns.append(['Vs_vertical', 'Vs_cross', c]) for c in ccxConnections]
+
+        [allconns.append(['Vs_cross', 'Vs_vertical', c]) for c in ccxConnections]
+        [allconns.append(['Vs_cross', 'Vs_vertical', c]) for c in ccxConnections]
+
+        [allconns.append(['Vs_cross', 'Vs_horizontal', c]) for c in ccxConnections]
+        [allconns.append(['Vs_cross', 'Vs_horizontal', c]) for c in ccxConnections]
 
 
     # --------------------------------------------------------------------#
