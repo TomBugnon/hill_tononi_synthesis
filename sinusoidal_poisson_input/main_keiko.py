@@ -44,19 +44,19 @@ if sim_fig_4:
 
 if sim_fig_3:
 
-    root_data_folder = '/mnt/fujiiNAS/TononiLab/experimental_data_Tokyo'
+    root_data_folder = '/mnt/fujiiNAS/TononiLab/experimental_data_Tokyo/junk_data'
 
-    #network ='network_full_keiko'
-    network ='network_full_keiko2'
+    network ='network_full_keiko'
+    #network ='network_full_keiko2'
     #network = 'network_full_leonardo'
 
     # scramble network connections? only works with network_full_leonardo!
-    scramble = True
-    #scramble = False
+    #scramble = True
+    scramble = False
 
     structured_input = True
     #structured_input = False
-    ret_rate = 20.0
+    ret_rate = 100.0
 
     if structured_input:
         # vertical
@@ -87,8 +87,11 @@ if sim_fig_3:
         #'phi_dg': 0.5*np.pi, # horizontal
 
         'scrambled' : scramble, # scramble the connectivity: no invariance for horizontal/vertical stimulus
-        #'load_connections_from_file': './scrambled_connection_Tp_Cortex.mat',
-        'load_connections_from_file': False,
+        'load_connections_from_file': True,
+        #'load_connections_from_file': False,
+
+        #'show_V4_num_conn_figure': True,
+        'show_V4_num_conn_figure': False,
 
         'lambda_dg': lambda_dg,  # visSize / number_of_lines
         'input_flag': input_flag,

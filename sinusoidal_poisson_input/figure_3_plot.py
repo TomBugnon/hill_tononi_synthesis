@@ -11,6 +11,7 @@
 import nest
 import nest.topology as tp
 import numpy as np
+import numpy.random as rd
 import os
 import matplotlib.pyplot as plt
 
@@ -59,6 +60,7 @@ def simulation(Params):
     nest.SetKernelStatus({'grng_seed' : msd})
     nest.SetKernelStatus({'rng_seeds' : range(msd+Params['threads']+1, msd+2*Params['threads']+1)})
 
+
     import importlib
     network = importlib.import_module(Params['network'])
     reload(network)
@@ -80,34 +82,251 @@ def simulation(Params):
             eval('tp.ConnectLayers(%s,%s,c[2])' % (c[0], c[1]))
 
 
+    # Prepare for file IO
+    import glob
+    # --- Set folder information
+    data_folder = Params['data_folder']
+    if not os.path.isdir(data_folder):
+        os.makedirs(data_folder)
+
+    # --- To save spike data, set pairs of population id and its name
+    population_name = [ {'population': Retina_layer, 'name': 'Retina'},
+                        {'population': Vp_vertical, 'name': 'Vp_v'},
+                        {'population': Vp_horizontal, 'name': 'Vp_h'},
+                        {'population': Rp_layer, 'name': 'Rp'},
+                        {'population': Tp_layer, 'name': 'Tp'},
+                        {'population': Vs_vertical, 'name': 'Vs_v'},
+                        {'population': Vs_horizontal, 'name': 'Vs_h'}]
+
+
     if Params.has_key('load_connections_from_file') and Params['load_connections_from_file']:
 
-        if Params['scrambled']:
-            print('Scramble connections using file')
-            #sc = scipy.io.loadmat('./scrambled_connection_Tp_Cortex.mat')
-            sc = scipy.io.loadmat(Params['load_connections_from_file'])
-            pre = sc['scrambled_connections'][:, 0].astype(int).tolist()
-            post = sc['scrambled_connections'][:, 1].astype(int).tolist()
-            w = sc['scrambled_connections'][:, 2].tolist()
-            d = sc['scrambled_connections'][:, 3].tolist()
-        else:
-            #TODO set intact network
-            sc = scipy.io.loadmat(Params['load_connections_from_file'])
-            # sc =
-            # pre=
-            # post=
-            # w=
-            # d=
+        # Preparation
+        scramble_populations = [(Vp_vertical, 'Vp_vertical'),
+                                (Vp_horizontal, 'Vp_horizontal')]
+        scramble_layers = ['L23_exc',
+                           'L23_inh',
+                           'L4_exc',
+                           'L4_inh',
+                           'L56_exc',
+                           'L56_inh']
+        #scramble_layers = ['L4_exc']
 
-        con_dict = {'rule': 'one_to_one'}
-        syn_dict = {"model": "ht_synapse",
-                    'receptor_type': 1,
-                    'weight': w,
-                    'delay': d,
-                    }
-        nest.Connect(pre, post, con_dict, syn_dict)
+        # Get min &max index of each layer
+        h_min_idx = {}
+        h_max_idx = {}
+        v_min_idx = {}
+        v_max_idx = {}
+        target_neurons = []
+        for tmp_model in scramble_layers:
+            tmp_h = nest.GetLeaves(Vp_horizontal, properties={'model': tmp_model}, local_only=True)[0]
+            tmp_v = nest.GetLeaves(Vp_vertical, properties={'model': tmp_model}, local_only=True)[0]
+            h_min_idx[tmp_model] = min(tmp_h)
+            h_max_idx[tmp_model] = max(tmp_h)
+            v_min_idx[tmp_model] = min(tmp_v)
+            v_max_idx[tmp_model] = max(tmp_v)
+            target_neurons = target_neurons + range(h_min_idx[tmp_model], h_max_idx[tmp_model]+1) + range(v_min_idx[tmp_model], v_max_idx[tmp_model]+1)
+
+        # Save intact network information
+        for p in range(0, len(population_name), 1):
+
+            population = population_name[p]['population']
+            p_name = population_name[p]['name']
+            filename_AMPA = data_folder + 'connection_' + p_name + '_AMPA_syn' + '_intact.dat'
+            filename_NMDA = data_folder + 'connection_' + p_name + '_NMDA_syn' + '_intact.dat'
+            filename_GABAA = data_folder + 'connection_' + p_name + '_GABA_A_syn' + '_intact.dat'
+            filename_GABAB = data_folder + 'connection_' + p_name + '_GABA_B_syn' + '_intact.dat'
+            tp.DumpLayerConnections(population, 'AMPA_syn', filename_AMPA)
+            tp.DumpLayerConnections(population, 'NMDA_syn', filename_NMDA)
+            tp.DumpLayerConnections(population, 'GABA_A_syn', filename_GABAA)
+            tp.DumpLayerConnections(population, 'GABA_B_syn', filename_GABAB)
+
+        # Reset network
+        nest.ResetNetwork()
+
+        '''
+        # The following code works, but takes time longer
+
+        # Get the list of connection_file
+        file_list = glob.glob(data_folder+'connection_*_intact.dat')
+
+        # Remove a file if the size is zero
+        remove_idx = []
+        for file_idx in range(0,len(file_list)):
+            intact_filename = file_list[file_idx]
+            fsize=os.path.getsize(intact_filename)
+            if fsize == 0:
+                remove_idx = remove_idx + [file_idx]
+
+        remove_idx.sort()
+        remove_idx.reverse()
+        for i in remove_idx:
+            del file_list[i]
+        '''
+
+        # TODO : put GABA_A, GABA_B and NMDA connection files
+        file_list = []
+        file_list.append({'filename': data_folder + 'connection_Vp_h_AMPA_syn_intact.dat',
+                           'synapse': 'AMPA'})
+        file_list.append({'filename': data_folder + 'connection_Vp_v_AMPA_syn_intact.dat',
+                           'synapse': 'AMPA'})
 
 
+        # Do the following procedure for all connection files
+        for file_idx in range(0,len(file_list)):
+
+            # Set filenames
+            intact_filename = file_list[file_idx]['filename']
+            receptors = nest.GetDefaults('ht_neuron')['receptor_types']
+            syn_model = receptors[ file_list[file_idx]['synapse'] ]
+
+            scrambled_filename = intact_filename.replace('intact', 'scrambled')
+            print(intact_filename)
+
+            # Get original(intact) connectivity data
+            src_network = np.loadtxt(open(intact_filename,'rb'))
+            np_pre = src_network[:, 0].astype(int)
+            np_post = src_network[:, 1].astype(int)
+            np_w = src_network[:, 2]
+            np_d = src_network[:, 3]
+
+            if Params['scrambled']:
+
+                # Preserve the original structure if
+                # -- pre neruons are not in target populations (i.e. scramble_layers)
+                # -- OR
+                # -- post neurons are not in target populations(i.e. scramble_layers)
+                preserved_rows = np.where( ~np.in1d(np_pre,target_neurons) | ~np.in1d(np_post,target_neurons) )[0]
+                preserved_pre = np_pre[preserved_rows]
+                preserved_post = np_post[preserved_rows]
+                preserved_w = np_w[preserved_rows]
+                preserved_d = np_d[preserved_rows]
+
+                # If len(preserved_rows)==len(np_pre), that means all neurons do not belong to scramble target areas.
+                # If len(preserved_rows) < len(np_pre), that means there are some neurons which need to be scrambled.
+                if len(preserved_rows) > len(np_pre):
+                    print('ERROR: preserved_rows should not be larger than np_pre')
+
+                elif len(preserved_rows) == len(np_pre):
+                    scrambled_pre = preserved_pre.tolist()
+                    scrambled_post = preserved_post.tolist()
+                    scrambled_w = preserved_w.tolist()
+                    scrambled_d = preserved_d.tolist()
+
+                else:  # --- len(preserved_rows) < len(np_pre)
+
+                    scrambled_pre = []
+                    scrambled_post = []
+                    scrambled_w = []
+                    scrambled_d = []
+
+                    for tmp_model_pre in scramble_layers:
+
+                        for tmp_model_post in scramble_layers:
+
+                            # Get row index such that
+                            # --- pre_neuron is in "tmp_model_pre"
+                            # --- AND
+                            # --- post_neuron is in "tmp_model_post"
+                            bool_pre_h = np.in1d(np_pre, range(h_min_idx[tmp_model_pre], h_max_idx[tmp_model_pre]+1))
+                            bool_pre_v = np.in1d(np_pre, range(v_min_idx[tmp_model_pre], v_max_idx[tmp_model_pre]+1))
+                            bool_post_h = np.in1d(np_post, range(h_min_idx[tmp_model_post], h_max_idx[tmp_model_post]+1))
+                            bool_post_v = np.in1d(np_post, range(v_min_idx[tmp_model_post], v_max_idx[tmp_model_post]+1))
+
+                            tmp_rows_pre_h = np.where(bool_pre_h & (bool_post_h|bool_post_v))[0]
+                            tmp_rows_pre_v = np.where(bool_pre_v & (bool_post_h|bool_post_v))[0]
+
+                            # Get connectivity data such that pre neuron is in "tmp_model_pre"
+                            # --- pre, w and d information should be kept.
+                            # --- post index should be scrambled.
+                            tmp_pre = np_pre[np.append(tmp_rows_pre_h, tmp_rows_pre_v)].tolist()
+                            tmp_w = np_w[np.append(tmp_rows_pre_h, tmp_rows_pre_v)].tolist()
+                            tmp_d = np_d[np.append(tmp_rows_pre_h, tmp_rows_pre_v)].tolist()
+                            tmp_post = []
+
+                            num_pre_h = len(tmp_rows_pre_h)
+                            num_pre_v = len(tmp_rows_pre_v)
+
+                            # --- pre : population = horizontal, model = "tmp_model_pre"
+                            # --- post: population = horizontal(1/2)+vertical(1/2), model = "tmp_model_post"
+                            if num_pre_h > 0:
+                                # Assign the same number of connections for horizontal population and vertical population
+                                num_scrambled_h = int(round(num_pre_h / 2))
+                                num_scrambled_v = num_pre_h - num_scrambled_h
+
+                                # Choose post neuron index randomly
+                                scrambled_h_idx = rd.randint(low =h_min_idx[tmp_model_post],
+                                                             high=h_max_idx[tmp_model_post],
+                                                             size=[num_scrambled_h, 1])
+                                scrambled_v_idx = rd.randint(low =v_min_idx[tmp_model_post],
+                                                             high=v_max_idx[tmp_model_post],
+                                                             size=[num_scrambled_v, 1])
+
+                                # append scrambled post index
+                                tmp_post = tmp_post + np.append(scrambled_h_idx, scrambled_v_idx).tolist()
+
+                            # --- pre : population = vertical, model = "tmp_model_pre"
+                            # --- post: population = horizontal(1/2)+vertical(1/2), model = "tmp_model_post"
+                            if num_pre_v > 0:
+                                # Assign the same number of connections for horizontal population and vertical population
+                                num_scrambled_h = int(round(num_pre_v / 2))
+                                num_scrambled_v = num_pre_v - num_scrambled_h
+
+                                # Choose post neuron index randomly
+                                scrambled_h_idx = rd.randint(low =h_min_idx[tmp_model_post],
+                                                             high=h_max_idx[tmp_model_post],
+                                                             size=[num_scrambled_h, 1])
+                                scrambled_v_idx = rd.randint(low =v_min_idx[tmp_model_post],
+                                                             high=v_max_idx[tmp_model_post],
+                                                             size=[num_scrambled_v, 1])
+
+                                # append scrambled post index
+                                tmp_post = tmp_post + np.append(scrambled_h_idx, scrambled_v_idx).tolist()
+
+                            scrambled_pre = scrambled_pre + tmp_pre
+                            scrambled_post = scrambled_post + tmp_post
+                            scrambled_w = scrambled_w + tmp_w
+                            scrambled_d = scrambled_d +tmp_d
+
+                    # append preserved connection data
+                    scrambled_pre = scrambled_pre + preserved_pre.tolist()
+                    scrambled_post = scrambled_post + preserved_post.tolist()
+                    scrambled_w = scrambled_w + preserved_w.tolist()
+                    scrambled_d = scrambled_d + preserved_d.tolist()
+
+                    # Save scrambled_data
+                    scrambled_all_data = np.zeros([len(scrambled_pre), 4])
+                    scrambled_all_data[:, 0] = scrambled_pre
+                    scrambled_all_data[:, 1] = scrambled_post
+                    scrambled_all_data[:, 2] = scrambled_w
+                    scrambled_all_data[:, 3] = scrambled_d
+                    np.savetxt(scrambled_filename, scrambled_all_data, fmt='%.6f')
+
+                # Connect
+                con_dict = {'rule': 'one_to_one'}
+                syn_dict = {"model": "ht_synapse",
+                            'receptor_type': syn_model,
+                            'weight': scrambled_w,
+                            'delay': scrambled_d,
+                            }
+                nest.Connect(scrambled_pre, scrambled_post, con_dict, syn_dict)
+
+
+            else:
+                # just convert data type(ndarray->list) and connect based on the original data
+                pre = np_pre.tolist()
+                post = np_post.tolist()
+                w = np_w.tolist()
+                d = np_d.tolist()
+
+                # Connect
+                con_dict = {'rule': 'one_to_one'}
+                syn_dict = {"model": "ht_synapse",
+                            'receptor_type': 1,
+                            'weight': w,
+                            'delay': d,
+                            }
+                nest.Connect(pre, post, con_dict, syn_dict)
 
     # nest.DisconnectOneToOne(tp_node, tgt_map[0], {"synapse_model": "AMPA_syn"})
     #nest.Disconnect([tp_node], tgt_map, 'one_to_one', {"synapse_model": "AMPA_syn"})
@@ -432,11 +651,11 @@ def simulation(Params):
 
         nest.Simulate(t)
 
-
+    '''
     data_folder = Params['data_folder']
-
     if not os.path.isdir(data_folder):
         os.makedirs(data_folder)
+    '''
 
     #! ====================
     #! Plot Results
@@ -531,21 +750,6 @@ def simulation(Params):
     #! ====================
 
     print('save recorders data')
-    # Set folder
-    #rootdir = '/home/kfujii2/newNEST2/ht_model_pablo_based/data/'
-    #expdir = 'random/'
-    # expdir = 'random_full/'
-    # expdir = 'structured_full/'
-    # data_folder = rootdir + expdir
-
-    # To save spike data, set pairs of population id and its name
-    population_name = [ {'population': Retina_layer, 'name': 'Retina'},
-                        {'population': Vp_vertical, 'name': 'Vp_v'},
-                        {'population': Vp_horizontal, 'name': 'Vp_h'},
-                        {'population': Rp_layer, 'name': 'Rp'},
-                        {'population': Tp_layer, 'name': 'Tp'},
-                        {'population': Vs_vertical, 'name': 'Vs_v'},
-                        {'population': Vs_horizontal, 'name': 'Vs_h'}]
 
     for rec, population, model in recorders:
 
@@ -597,6 +801,9 @@ def simulation(Params):
             filename = data_folder + 'spike_' + p_name + '_' + model + '.pickle'
             pickle.dump(spikes, open(filename, 'w'))
             scipy.io.savemat(data_folder + '/spike_' + p_name + '_' + model + '.mat', mdict={'senders': spikes['senders'], 'times': spikes['times']})
+
+            #filename_AMPA = data_folder + 'connection_' + p_name + '_AMPA_syn' + '.dat'
+            #tp.DumpLayerConnections(population, 'AMPA_syn', filename_AMPA)
 
             '''
             filename_AMPA = data_folder + 'connection_' + p_name + '_AMPA_syn' + '.dat'
