@@ -319,7 +319,40 @@ def simulation(Params):
 
 
     if Params.has_key('show_center_connectivity_figure') and Params['show_center_connectivity_figure']:
-        tp.PlotTargets(tp.FindCenterElement(Vp_horizontal), Vp_horizontal, 'L56_exc', 'AMPA_syn')
+
+        # this code only gives one element, and you have no control over the
+        # model it comes from...
+        # tp.PlotTargets(tp.FindCenterElement(Vp_horizontal), Vp_horizontal, 'L56_exc', 'AMPA_syn')
+        # tp.PlotTargets(tp.FindCenterElement(Vp_horizontal), Vp_vertical, 'L56_exc', 'AMPA_syn')
+        # tp.PlotTargets(tp.FindCenterElement(Vp_vertical), Vp_horizontal, 'L56_exc', 'AMPA_syn')
+        # tp.PlotTargets(tp.FindCenterElement(Vp_vertical), Vp_vertical, 'L56_exc', 'AMPA_syn')
+
+        # this way I can get all nodes in the positions, and later filter per Model using GetStatus
+        # IMPORTANT: when layer has even number of neurons per line/column
+        #            using center (0,0) makes the function return 4 neurons
+        #            per postiion since they all have the same distance.
+        #            Using (-0,1, 0,1) solves this problem.
+        #            When using odd number perhaps this has to change...
+
+        for src_label in ['Vp_horizontal', 'Vp_vertical']:
+            for tgt_label in ['Vp_horizontal', 'Vp_vertical']:
+                n_plot = 0
+                f = plt.figure()
+                f.canvas.set_window_title('AMPA Connections: %s -> %s' % (src_label, tgt_label))
+                all_center = tp.FindNearestElement(Vp_horizontal, (-0.1, 0.1), True)[0]
+                for n in all_center:
+                    s = nest.GetStatus([n])
+                    p = tp.GetPosition([n])
+                    # print('%s : (%2.2f, %2.2f)' % (s[0]['model'], p[0][0], p[0][1]))
+                    m1 = s[0]['model'].name
+                    if m1.find('_exc'):
+                        for m2 in ['L23_exc', 'L4_exc', 'L56_exc']:
+                            if len(tp.GetTargetNodes([n], Vp_horizontal, m2, 'AMPA_syn')[0]) > 0:
+                                n_plot += 1
+                                f.add_subplot(3,5,n_plot)
+                                tp.PlotTargets([n], Vp_horizontal, m2, 'AMPA_syn', f)
+                                plt.title('%s -> %s' % (m1, m2))
+                f.savefig(data_folder + '/connectivity_%s_%s.png' % (src_label, tgt_label), dpi=100)
 
     if Params.has_key('show_V4_connectivity_figure') and Params['show_V4_connectivity_figure']:
 
@@ -525,6 +558,8 @@ def simulation(Params):
     for population, model in [(Retina_layer, 'Retina'),
                               (Tp_layer  , 'Tp_exc'),
                               (Tp_layer  , 'Tp_inh'),
+                              (Vp_vertical, 'L23_exc'),
+                              (Vp_horizontal, 'L23_exc'),
                               (Vp_vertical, 'L4_exc'),
                               (Vp_horizontal, 'L4_exc')]:
         print('.', end="")
@@ -697,32 +732,33 @@ def simulation(Params):
                         {'population': Vs_vertical, 'name': 'Vs_v'},
                         {'population': Vs_horizontal, 'name': 'Vs_h'}]
 
-    for rec, population, model in recorders:
+    if Params.has_key('save_recorders') and Params['save_recorders']:
+        for rec, population, model in recorders:
 
-        # Get name of population
-        for p in range(0, len(population_name), 1):
-            if population_name[p]['population'] == population:
-                p_name = population_name[p]['name']
+            # Get name of population
+            for p in range(0, len(population_name), 1):
+                if population_name[p]['population'] == population:
+                    p_name = population_name[p]['name']
 
-        data = nest.GetStatus(rec)[0]['events']
+            data = nest.GetStatus(rec)[0]['events']
 
-        if model == 'Retina':
-            scipy.io.savemat(data_folder + '/recorder_' + p_name + '_' + model + '.mat',
-                             mdict={'senders': data['senders'],
-                                    'rate': data['rate']})
-        else:
-            scipy.io.savemat(data_folder + '/recorder_' + p_name + '_' + model + '.mat',
-                             mdict={'senders': data['senders'],
-                                    'V_m': data['V_m']
-                                    #'I_syn_AMPA': data['I_syn_AMPA'],
-                                    #'I_syn_NMDA': data['I_syn_NMDA'],
-                                    #'I_syn_GABA_A': data['I_syn_GABA_A'],
-                                    #'I_syn_GABA_B': data['I_syn_GABA_B'],
-                                    #'g_AMPA': data['g_AMPA'],
-                                    #'g_NMDA': data['g_NMDA'],
-                                    #'g_GABAA': data['g_GABAA'],
-                                    #'g_GABAB': data['g_GABAB']
-                                    } )
+            if model == 'Retina':
+                scipy.io.savemat(data_folder + '/recorder_' + p_name + '_' + model + '.mat',
+                                 mdict={'senders': data['senders'],
+                                        'rate': data['rate']})
+            else:
+                scipy.io.savemat(data_folder + '/recorder_' + p_name + '_' + model + '.mat',
+                                 mdict={'senders': data['senders'],
+                                        'V_m': data['V_m']
+                                        #'I_syn_AMPA': data['I_syn_AMPA'],
+                                        #'I_syn_NMDA': data['I_syn_NMDA'],
+                                        #'I_syn_GABA_A': data['I_syn_GABA_A'],
+                                        #'I_syn_GABA_B': data['I_syn_GABA_B'],
+                                        #'g_AMPA': data['g_AMPA'],
+                                        #'g_NMDA': data['g_NMDA'],
+                                        #'g_GABAA': data['g_GABAA'],
+                                        #'g_GABAB': data['g_GABAB']
+                                        } )
 
 
 
