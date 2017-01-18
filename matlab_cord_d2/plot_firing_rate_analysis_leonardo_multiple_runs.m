@@ -1,6 +1,6 @@
 
-load([root_dir '/last_group_analyses.mat'], 'all_x_time', 'all_max_resolution', 'all_max_d2',  'all_mean_p', 'all_std_p',... 
-                                            'all_threshold_all', 'all_max_threshold');
+load([root_dir '/last_data_for_plot.mat'], 'all_x_time', 'all_max_resolution', 'all_max_d2',  'all_mean_p', 'all_std_p',... 
+                                            'all_threshold_all', 'all_max_threshold', 'all_d2_all');
 
 %% Display results
 
@@ -21,6 +21,7 @@ for run = 1:nruns
         figure(fs{id})
 
         x_time = all_x_time{id, run};
+        d2_all = all_d2_all{id, run};
         max_resolution = all_max_resolution{id, run};
         max_d2 = all_max_d2{id, run};
         mean_p = all_mean_p{id, run};
@@ -49,7 +50,8 @@ for run = 1:nruns
         set(gca,'XTick', x_time(1:80:end))
         %set(gca,'XTickLabel', x_str(1:20:end))
         %ylim([0 6000])
-        ylim([0 1])
+%         ylim([0 1])
+        ylim([0 .5])
 
         subplot(sublayout(2))
         hold on
@@ -58,7 +60,7 @@ for run = 1:nruns
         % errorbar(mean(max_p), std(max_p))
         % title( strcat('max probability (timewindow = ',num2str(max_resolution), ')') )
         %plot(x_val, mean_p(:,1), 'k'); 
-        silent_h = shadedErrorBar(x_time, mean_p(:,1),std_p(:,1),'k',1);
+        silent_h = shadedErrorBar(x_time, mean_p(:,1),std_p(:,1),'k', 1);
         hold on; 
         %plot(x_val, mean_p(:,2), 'r')
         active_h = shadedErrorBar(x_time, mean_p(:,2),std_p(:,2),'r',1);
@@ -168,7 +170,7 @@ end
 
 %%
 f1 = figure;
-f2 = figure;
+% f2 = figure;
 
 
 fprintf('mean D2, for:\n')
@@ -180,9 +182,11 @@ for id = 1:ntemplates
     figure(f1)
     m = mean(avg_max_d2(id,:), 2);
     s = std(avg_max_d2(id,:), [], 2);
-    h(end+1) = errorbar(id, m, s, '.');
+    h(end+1) = errorbar(id, m, s, '.', 'MarkerSize',20);
     hold on
     xlim([0 5])
+    ylabel('max D2')
+    set(gca, 'XTickLabel', '')
     name{end+1} = strrep(dirnames_template{id}, 'network_full_leonardo_', '');
     name{end} = strrep(name{end}, 'Np_40_Ns_30_p_ratio_2', '');    
     name{end} = strrep(name{end}, '_rate100_run%d', '');
@@ -192,10 +196,10 @@ for id = 1:ntemplates
     
     fprintf('\t%s : %2.5f (%2.5f)\n', name{end}, m, s);
     
-    figure(f2)
-    subplot(2,2,id)
-    histogram(avg_max_resolution(id,:), 5);
-    title(name{end})    
+%     figure(f2)
+%     subplot(2,2,id)
+%     histogram(avg_max_resolution(id,:), 5);
+%     title(name{end})    
 end
 fprintf('\n');
 legend(h, name)
@@ -203,7 +207,7 @@ legend(h, name)
 
 %%
 f1 = figure;
-f2 = figure;
+% f2 = figure;
 
 fprintf('mean maximumal resolution, for:\n')
 fprintf('\n');
@@ -215,10 +219,12 @@ for id = 1:ntemplates
     figure(f1)
     m = mean(avg_max_resolution(id,:), 2);
     s = std(avg_max_resolution(id,:), [], 2);
-    h(end+1) = errorbar(id, m, s, '.');
+    h(end+1) = errorbar(id, m, s, '.', 'MarkerSize',20);
     hold on
-    xlim([0 5])
+    xlim([0 5])    
     ylim([min(avg_max_resolution(:))-100, max(avg_max_resolution(:)+100)])
+    ylabel('Macroing window size')
+    set(gca, 'XTickLabel', '')
     name{end+1} = strrep(dirnames_template{id}, 'network_full_leonardo_', '');
     name{end} = strrep(name{end}, 'Np_40_Ns_30_p_ratio_2', '');    
     name{end} = strrep(name{end}, '_rate100_run%d', '');
@@ -228,10 +234,10 @@ for id = 1:ntemplates
     
     fprintf('\t%s : %2.5f (%2.5f)\n', name{end}, m, s);
     
-    figure(f2)
-    subplot(2,2,id)
-    histogram(avg_max_resolution(id,:), 5);
-    title(name{end})
+%     figure(f2)
+%     subplot(2,2,id)
+%     histogram(avg_max_resolution(id,:), 5);
+%     title(name{end})
 end
 
 fprintf('\n');

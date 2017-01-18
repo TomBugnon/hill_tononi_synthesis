@@ -29,9 +29,10 @@ p_ratio = 2.
 # vis_size = [10, 7]
 vis_size = [40, 30]
 
-for run in range(1,21):
-    for structured_input in [True, False]:
-    #for structured_input in [True]:
+for run in range(1,2):
+#for run in range(1,21):
+    #for structured_input in [True, False]:
+    for structured_input in [True]:
     #for structured_input in [False]:
         for scramble in [True, False]:
         # for scramble in [True]:
@@ -107,7 +108,7 @@ for run in range(1,21):
                     'end_membrane_potential' : 130.0,
                     'show_V4_num_conn_figure' : False,
                     'show_V4_connectivity_figure' : False,
-                    'show_center_connectivity_figure' : False,
+                    'show_center_connectivity_figure' : True,
                     #'save_recorders' : True,
                     'save_recorders' : False,
                     'network' : network,
@@ -141,8 +142,8 @@ for run in range(1,21):
 
                     # for debugin
                     'p_ratio': p_ratio,
-                    'dry_run': False
-                    #'dry_run': True
+                    #'dry_run': False
+                    'dry_run': True
 
                 }
 

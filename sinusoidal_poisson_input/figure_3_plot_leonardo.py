@@ -334,24 +334,55 @@ def simulation(Params):
         #            Using (-0,1, 0,1) solves this problem.
         #            When using odd number perhaps this has to change...
 
-        for src_label in ['Vp_horizontal', 'Vp_vertical']:
-            for tgt_label in ['Vp_horizontal', 'Vp_vertical']:
+        for src_label in ['Tp_layer', 'Vp_vertical', 'Vp_horizontal']:
+            for tgt_label in ['Tp_layer', 'Vp_vertical', 'Vp_horizontal']:
+
+                if src_label == 'Tp_layer' and src_label == tgt_label:
+                    continue
+
+                print('source population %s' % src_label)
+                print('target population %s' % tgt_label)
                 n_plot = 0
                 f = plt.figure()
                 f.canvas.set_window_title('AMPA Connections: %s -> %s' % (src_label, tgt_label))
-                all_center = tp.FindNearestElement(Vp_horizontal, (-0.1, 0.1), True)[0]
+                all_center = eval('tp.FindNearestElement(%s, (-0.1, 0.1), True)[0]' % src_label)
                 for n in all_center:
                     s = nest.GetStatus([n])
                     p = tp.GetPosition([n])
                     # print('%s : (%2.2f, %2.2f)' % (s[0]['model'], p[0][0], p[0][1]))
                     m1 = s[0]['model'].name
-                    if m1.find('_exc'):
-                        for m2 in ['L23_exc', 'L4_exc', 'L56_exc']:
-                            if len(tp.GetTargetNodes([n], Vp_horizontal, m2, 'AMPA_syn')[0]) > 0:
-                                n_plot += 1
-                                f.add_subplot(3,5,n_plot)
-                                tp.PlotTargets([n], Vp_horizontal, m2, 'AMPA_syn', f)
-                                plt.title('%s -> %s' % (m1, m2))
+                    print('Source neuron model %s' % m1)
+                    if m1.find('_exc') > -1:
+                        if src_label.find('Tp_') > -1:
+                            print( 'found Tp_')
+                            # target has to be one of Vp_ or Vs_ models
+                            target_models = ['L23_exc', 'L4_exc', 'L56_exc']
+                        elif src_label.find('Vp_') > -1 or src_label.find('Vs') > -1:
+                            # if target is Vp_ of Vs_ too, then one of those models
+                            if tgt_label.find('Vp_') > -1:
+                                target_models = ['L23_exc', 'L4_exc', 'L56_exc']
+                            elif tgt_label.find('Tp_') > -1:
+                                # otherwise it has to be a Tp_target
+                                target_models = ['Tp_exc']
+                            else:
+                                raise ValueError('Invalide target %s for source model: %s' % (tgt_label, src_label))
+                        else:
+                            raise ValueError('Invalide source model: %s' % (src_label))
+
+                        for m2 in target_models:
+                            print('Target neuron model %s' % m2)
+                            try:
+                                get_targets_command = 'tp.GetTargetNodes([n], %s, m2, "AMPA_syn")[0]' % tgt_label
+                                print(get_targets_command)
+                                targets = eval(get_targets_command)
+                                if len(targets) > 0:
+                                    n_plot += 1
+                                    f.add_subplot(3,5,n_plot)
+                                    eval('tp.PlotTargets([n], %s, m2, "AMPA_syn", f)' % tgt_label)
+                                    plt.title('%s -> %s' % (m1, m2), fontsize=9)
+                            except:
+                                print('didnt work')
+
                 f.savefig(data_folder + '/connectivity_%s_%s.png' % (src_label, tgt_label), dpi=100)
 
     if Params.has_key('show_V4_connectivity_figure') and Params['show_V4_connectivity_figure']:

@@ -1,6 +1,9 @@
 
 
-root_dir = '/data/nsdm';
+
+%% Set global parameters
+
+root_dir = '/data/nsdm/run_20';
 
 dirnames_template = { ...
              '/network_full_leonardo_intact_edge_wrap_1_Np_40_Ns_30_p_ratio_2/vertical_rate100_run%d',...
@@ -9,8 +12,8 @@ dirnames_template = { ...
              '/network_full_leonardo_scrambled_edge_wrap_1_Np_40_Ns_30_p_ratio_2/random_rate100_run%d'
              };
 
-
-%% Set parameters global parameters
+population = {'Vp_v_L4_exc', 'Vp_h_L4_exc'};
+% population = {'Vp_v_L23_exc', 'Vp_h_L23_exc'};
 
 time_threshold_min = 500;
 % time_threshold_max = 5000;
@@ -49,13 +52,6 @@ for run = 0:nruns-1
         dirname = [root_dir sprintf(dirnames_template{id}, run)];
 %         fprintf('\t%s\n', dirname)
         
-        %% Set local parameters
-
-        % filename_v = strcat(dirname, '/spike_Vp_v_L4_exc.mat');
-        % filename_h = strcat(dirname, '/spike_Vp_h_L4_exc.mat');
-        filename_v = strcat(dirname, '/spike_Vp_v_L23_exc.mat');
-        filename_h = strcat(dirname, '/spike_Vp_h_L23_exc.mat');
-
 
         %% Load data
         % Output from NEST uses sparse-expression, so I converted to matrix
@@ -65,10 +61,13 @@ for run = 0:nruns-1
         % --- If i-th neuron fired at time j, spike_mat(i,j)==1, otherwise 0
         % --- Note that time is limited from "time_window_min" to "time_window_max"
         % --- so, j-th column in spike_mat represents the time of (j + time_window_min) in NEST simulator.
-        spike_mat_v = convert_nestspike2mat(filename_v,time_threshold_min,time_threshold_max);
-        spike_mat_h = convert_nestspike2mat(filename_h,time_threshold_min,time_threshold_max);
 
-        spike_mat = [spike_mat_v; spike_mat_h];
+        spike_mat = [];
+        for p = population
+            filename = strcat(dirname, '/spike_', p{1}, '.mat');
+            this_spike_mat = convert_nestspike2mat(filename ,time_threshold_min,time_threshold_max);
+            spike_mat = [this_spike_mat; spike_mat];
+        end
         %spike_mat = spike_mat_v;
         
         % Ignore neurons which did not fired at all during experiments
@@ -234,7 +233,17 @@ for run = 0:nruns-1
     
 end
 
-save([root_dir '/last_group_analyses.mat'], 'all_x_time', 'all_max_resolution', 'all_max_d2',  'all_mean_p', 'all_std_p',... 
+s = ''; for p = population, s = [p{1} '_' s]; end
+if fixed_threshold
+    f = 'fixed_thresh';
+else
+    f = 'best_thresh';
+end
+
+save([root_dir '/data_for_plot_' s f '.mat'], 'all_x_time', 'all_max_resolution', 'all_max_d2',  'all_mean_p', 'all_std_p',... 
+                                            'all_threshold_all', 'all_max_threshold', 'all_d2_all');
+
+save([root_dir '/last_data_for_plot.mat'], 'all_x_time', 'all_max_resolution', 'all_max_d2',  'all_mean_p', 'all_std_p',... 
                                             'all_threshold_all', 'all_max_threshold', 'all_d2_all');
 
 fprintf('\n\nDone.\n\n')
