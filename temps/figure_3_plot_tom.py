@@ -79,7 +79,9 @@ def simulation(Params):
     import time
     msd = int(round(time.time() * 1000))
     nest.SetKernelStatus({'grng_seed' : msd})
-    nest.SetKernelStatus({'rng_seeds' : range(msd+Params['threads']+1, msd+2*Params['threads']+1)})
+    # Tom debug
+    # nest.SetKernelStatus({'rng_seeds' : range(msd+Params['threads']+1, msd+2*Params['threads']+1)})
+    nest.SetKernelStatus({'rng_seeds': range(msd + Params['threads'] + 1, msd + 2 * Params['threads'] + 1)})
 
     import importlib
     network = importlib.import_module(Params['network'])
@@ -463,8 +465,8 @@ def simulation(Params):
     ridx_horizontal = np.random.randint(num_neuron, size=(1,num_ib))[0]
 
     for i in range(1,num_ib,1):
-        nest.SetStatus([L56_vertical_idx[ridx_vertical[i]]], {'h_g_peak': 1.0})
-        nest.SetStatus([L56_horizontal_idx[ridx_horizontal[i]]], {'h_g_peak': 1.0})
+        nest.SetStatus([L56_vertical_idx[ridx_vertical[i]]], {'g_peak_h': 1.0})
+        nest.SetStatus([L56_horizontal_idx[ridx_horizontal[i]]], {'g_peak_h': 1.0})
 
 
 
@@ -481,21 +483,21 @@ def simulation(Params):
     print('Connecting recorders...', end="")
     nest.CopyModel('multimeter', 'RecordingNode',
             params = {'interval'   : Params['resolution'],
-            'record_from': ['V_m'
+            'record_from': ['V_m',
                             # Put back when plotting synaptic currents, otherwise makes everything slower for no reason
                             # 'I_syn_AMPA',
                             # 'I_syn_NMDA',
                             # 'I_syn_GABA_A',
                             # 'I_syn_GABA_B',
-                            #'g_AMPA',
-                            #'g_NMDA',
-                            #'g_GABAA',
-                            #'g_GABAB',
+                            'g_AMPA',
+                            'g_NMDA',
+                            'g_GABA_A',
+                            'g_GABA_B'],
                             #'I_NaP',
                             #'I_KNa',
                             #'I_T',
                             #'I_h'
-                            ],
+                            #]
             'record_to'  : ['memory'],
             'withgid'    : True,
             'withtime'   : True})
@@ -529,18 +531,68 @@ def simulation(Params):
                               (Vs_vertical, 'L56_exc'),
                               (Vs_horizontal, 'L56_exc'),
                               (Vs_vertical, 'L56_inh'),
-                              (Vs_horizontal, 'L56_inh')]:
+                              (Vs_horizontal, 'L56_inh'),
+                              (Vs_cross, 'L23_exc'),
+                              (Vs_cross, 'L4_exc'),
+                              (Vs_cross, 'L4_exc'),
+
+
+                              ]:
     '''
+
+
     for population, model in [(Retina_layer, 'Retina'),
                               (Tp_layer  , 'Tp_exc'),
-                              (Tp_layer  , 'Tp_inh'),
-                              (Vp_vertical, 'L4_exc'),
-                              (Vp_vertical, 'L4_inh'),
-                              (Vp_horizontal, 'L4_exc'),
+                              (Rp_layer  , 'Rp'),
                               (Vp_vertical, 'L23_exc'),
                               (Vp_horizontal, 'L23_exc'),
+                              (Vp_vertical, 'L23_inh'),
+                              (Vp_vertical, 'L4_exc'),
+                              (Vp_horizontal, 'L4_exc'),
+                              (Vp_vertical, 'L4_inh'),
                               (Vp_vertical, 'L56_exc'),
-                              (Rp_layer, 'Rp')]:
+                              (Vp_horizontal, 'L56_exc'),
+                              (Vs_vertical, 'L23_exc'),
+                              (Vs_horizontal, 'L23_exc'),
+                              (Vs_vertical, 'L4_exc'),
+                              (Vs_horizontal, 'L4_exc'),
+                              (Vs_vertical, 'L56_exc'),
+                              (Vs_horizontal, 'L56_exc'),
+                              (Vs_cross, 'L23_exc'),
+                              (Vs_cross, 'L4_exc'),
+                              (Vs_cross, 'L56_exc'),
+
+
+                              ]:
+
+
+    # for population, model in [(Retina_layer, 'Retina'),
+    #                           (Tp_layer  , 'Tp_exc'),
+    #                           (Tp_layer  , 'Tp_inh'),
+    #                           (Vp_vertical, 'L4_exc'),
+    #                           (Vp_vertical, 'L4_inh'),
+    #                           (Vp_horizontal, 'L4_exc'),
+    #                           (Vp_vertical, 'L23_exc'),
+    #                           (Vp_horizontal, 'L23_exc'),
+    #                           (Vp_vertical, 'L56_exc'),
+    #                           (Rp_layer, 'Rp')]:
+    # for population, model in [(Retina_layer, 'Retina'),
+    #                           (Tp_layer  , 'Tp_exc'),
+    #                           (Tp_layer  , 'Tp_inh'),
+    #                           (Vp_vertical, 'L4_inh'),
+    #                           (Vp_horizontal, 'L4_exc'),
+    #                           (Vp_horizontal, 'L23_exc'),
+    #                           (Rp_layer, 'Rp'),
+    #                           (Vp_vertical, 'L23_exc'),
+    #                           (Vp_vertical, 'L4_exc'),
+    #                           (Vp_vertical, 'L56_exc'),
+    #                           (Vs_vertical, 'L23_exc'),
+    #                           (Vs_vertical, 'L4_exc'),
+    #                           (Vs_vertical, 'L56_exc'),
+    #
+    #                           ]:
+
+
         print('.', end="")
         rec = nest.Create('RecordingNode')
         recorders.append([rec,population,model])
@@ -586,7 +638,7 @@ def simulation(Params):
                               (Vs_vertical, 'L56_inh'),
                               (Vs_horizontal, 'L56_inh')]:
         '''
-
+    '''
     for population, model in [(Retina_layer, 'Retina'),
                               (Tp_layer  , 'Tp_exc'),
                               (Tp_layer  , 'Tp_inh'),
@@ -594,6 +646,27 @@ def simulation(Params):
                               (Vp_horizontal, 'L23_exc'),
                               (Vp_vertical, 'L4_exc'),
                               (Vp_horizontal, 'L4_exc')]:
+        '''
+
+    #Tom
+    for population, model in [(Retina_layer, 'Retina'),
+                              (Tp_layer, 'Tp_exc'),
+                              (Tp_layer, 'Tp_inh'),
+                              (Vp_vertical, 'L23_exc'),
+                              (Vp_vertical, 'L4_exc'),
+                              (Vp_vertical, 'L56_exc'),
+                              (Vp_vertical, 'L23_inh'),
+                              (Vp_vertical, 'L4_inh'),
+                              (Vp_vertical, 'L56_inh'),
+                              (Vs_vertical, 'L23_exc'),
+                              (Vs_vertical, 'L23_inh'),
+                              (Vs_vertical, 'L4_exc'),
+                              (Vs_vertical, 'L4_inh'),
+                              (Vs_vertical, 'L56_exc'),
+                              (Vs_vertical, 'L56_inh')]:
+
+
+
         print('.', end="")
         rec = nest.Create('spike_detector', params={"withgid": True, "withtime": True})
         #rec = nest.Create('spike_detector')
@@ -743,6 +816,68 @@ def simulation(Params):
     #plotting.makeMovie(fig,recorders,recorded_models,labels,Params['Np'],np.sum(Params['intervals']),Params['resolution'])
 
 
+
+    # Plot F: All areas
+
+
+    if Params.has_key('plot_all_regions') and Params['plot_all_regions']:
+
+        print("Creating plot of all areas")
+
+        #
+        #
+        # fig = plt.figure(num=None, figsize=(24, 24))
+        #
+        # fig.subplots_adjust(hspace=0.4)
+
+
+        # For each column, (pop, model, y_axis_legend)
+        # The y axis legend will show: y_axis_legend+model
+
+        vertical_models = [(Retina_layer,'Retina'),
+                        (Vp_vertical,'L23_exc'),
+                        (Vp_vertical,'L4_exc'),
+                        (Vp_vertical,'L56_exc'),
+                        (Vs_vertical,'L23_exc'),
+                        (Vs_vertical, 'L4_exc'),
+                        (Vs_vertical, 'L56_exc')]
+
+        horizontal_models = [(Retina_layer,'Retina'),
+                        (Vp_horizontal,'L23_exc'),
+                        (Vp_horizontal,'L4_exc'),
+                        (Vp_horizontal,'L56_exc'),
+                        (Vs_horizontal,'L23_exc'),
+                        (Vs_horizontal, 'L4_exc'),
+                        (Vs_horizontal, 'L56_exc')]
+
+        cross_models = [(Retina_layer,'Retina'),
+                        (),
+                        (),
+                        (),
+                        (Vs_cross,'L23_exc'),
+                        (Vs_cross, 'L4_exc'),
+                        (Vs_cross, 'L56_exc')]
+
+        labels = ['Vertical', 'Horizontal', 'Cross']
+
+        areas = ['Retina', 'Primary', 'Primary', 'Primary', 'Secondary', 'Secondary', 'Secondary']
+
+        plotcols = [vertical_models, horizontal_models, cross_models]
+
+
+        fig = plotting.potential_raster_multiple_models(fig, recorders, plotcols, labels, areas, 0, Params['Np'],
+                                                  np.sum(Params['intervals']),
+                                                  Params['resolution'],
+                                                  0)
+
+        fig.savefig(data_folder + '/figure_all_areas.png', dpi=100)
+
+
+
+
+
+
+
     #! ====================
     #! Save Results
     #! ====================
@@ -781,15 +916,16 @@ def simulation(Params):
             else:
                 scipy.io.savemat(data_folder + '/recorder_' + p_name + '_' + model + '.mat',
                                  mdict={'senders': data['senders'],
-                                        'V_m': data['V_m']
+                                        'times': data['times'],
+                                        'V_m': data['V_m'],
                                         #'I_syn_AMPA': data['I_syn_AMPA'],
                                         #'I_syn_NMDA': data['I_syn_NMDA'],
                                         #'I_syn_GABA_A': data['I_syn_GABA_A'],
                                         #'I_syn_GABA_B': data['I_syn_GABA_B'],
-                                        #'g_AMPA': data['g_AMPA'],
-                                        #'g_NMDA': data['g_NMDA'],
-                                        #'g_GABAA': data['g_GABAA'],
-                                        #'g_GABAB': data['g_GABAB']
+                                        'g_AMPA': data['g_AMPA'],
+                                        'g_NMDA': data['g_NMDA'],
+                                        'g_GABA_A': data['g_GABA_A'],
+                                        'g_GABA_B': data['g_GABA_B']
                                         } )
 
 

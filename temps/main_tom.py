@@ -11,11 +11,15 @@ import numpy as np
 import time
 import math
 
-import figure_4_plot
-reload(figure_4_plot)
+import figure_4_plot_tom
+reload(figure_4_plot_tom)
 
-import figure_3_plot_leonardo
-reload(figure_3_plot_leonardo)
+import figure_3_plot_nothal_tom
+reload(figure_3_plot_nothal_tom)
+
+import figure_3_plot_tom
+reload(figure_3_plot_tom)
+
 
 import test_scrambled_intact
 reload(test_scrambled_intact)
@@ -53,23 +57,25 @@ for run in range(1,2):
                     #'intervals': [500.0],  # Intervals (in ms) of the waking,transition
                     'intervals': [500.0, 500.0, 500.0, 500.0, 3000.0],  # Intervals (in ms) of the waking,transition
                                                        # and sleep modes
-                    'resolution': 1.0 # Simulation step (in ms)
+                    'resolution': 1.0, # Simulation step (in ms)
+                    'p_ratio': p_ratio,
+
                 }
 
                 # Run simulation of figure 4
-                figure_4_plot.simulation(Params)
+                figure_4_plot_tom.simulation(Params)
 
 
 
             if sim_fig_3:
 
-
-                root_folder = '/data/nsdm'
-                root_folder = '/Users/Tom/Desktop/test_leonardo_network/keiko_version/'
+                root_folder = '/Users/Tom/Documents/projects/network_simulations/HEAD_version/full/'
+                # root_folder = '/Users/Tom/Desktop/garbage'
 
                 #network ='network_full_keiko'
                 #network ='network_full_keiko2'
-                network = 'network_full_leonardo'
+                # network = 'network_full_leonardo'
+                network = 'network_full_tom'
                 #network = 'network_full_leonardo2'
 
                 # scramble network connections? only works with network_full_leonardo!
@@ -77,15 +83,24 @@ for run in range(1,2):
                 # scramble = False
 
                 # structured_input = True
-                # structured_input = False
+                structured_input = False
+
+
                 ret_rate = 100.0
+
+                synapse_keiko = True
+                NMDA_keiko = False
+
 
                 edge_wrap = True
                 #edge_wrap = False
-                net_folder = '/%s_%s_edge_wrap_%d_Np_%d_Ns_%d_p_ratio_%d' % \
+                net_folder = '/%s_%s_edge_wrap_%d_Np_%d_Ns_%d_p_ratio_%d_NMDA_%s_synapse_%s' % \
                               (network,
                                'scrambled' if scramble else 'intact',
-                               1*edge_wrap, vis_size[0], vis_size[1], p_ratio)
+                               1*edge_wrap, vis_size[0], vis_size[1], p_ratio,
+                               'keiko' if NMDA_keiko else 'default',
+                               'keiko' if synapse_keiko else 'default')
+
 
                 if structured_input:
                     # vertical
@@ -143,13 +158,18 @@ for run in range(1,2):
 
                     # for debugin
                     'p_ratio': p_ratio,
-                    'dry_run': False
+                    'dry_run': False,
                     #'dry_run': True
+
+                    'plot_all_regions' : True,
+
+                    'synapse_keiko' : synapse_keiko,
+                    'NMDA_keiko' : NMDA_keiko
 
                 }
 
                 # Run simulation of figure 3
-                figure_3_plot_leonardo.simulation(Params)
+                figure_3_plot_tom.simulation(Params)
                 # test_scrambled_intact.simulation(Params)
 
 

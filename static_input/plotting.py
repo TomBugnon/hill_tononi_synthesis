@@ -94,17 +94,24 @@ def intracellular_potentials(fig, recorders, recorded_models, starting_neuron, r
 
 ## C: time-averaged topographic representation of the membrane potential
 
-def topographic_representation(fig,recorders,recorded_models,labels,number_cells,simtime,resolution,rows,cols,start,stop,starting_pos,col_paint):
+def topographic_representation(subp,recorders,recorded_models,labels,number_cells,simtime,resolution,rows,cols,start,stop,starting_pos,col_paint):
 
     col_ind = col_paint
     pos = starting_pos
     counter = 0
+    rec_from = ['rate','V_m']
 
     for population, model in recorded_models:
 
             l = [nd for nd in np.arange(0,len(recorders)) if (recorders[nd][1] == population and recorders[nd][2] == model)][0]
             data = nest.GetStatus(recorders[l][0],keys='events')
             pop = [nd for nd in nest.GetLeaves(population)[0] if nest.GetStatus([nd], 'model')[0]==model]
+
+            # Retina layer always the first (l=0)
+            if l==0:
+                    rf = rec_from[0]
+            else:
+                    rf = rec_from[1]
 
             raster = np.zeros((number_cells, number_cells))
             mult_pos = 0
@@ -113,12 +120,13 @@ def topographic_representation(fig,recorders,recorded_models,labels,number_cells
                     for y in range(0, number_cells):
 
                             selected_senders = np.where(senders==pop[mult_pos])
-                            ind_rec = (data[0]['V_m'])[selected_senders[0]]
+                            ind_rec = (data[0][rf])[selected_senders[0]]
                             raster[y,x] = np.sum( ind_rec[int(start/resolution):int(stop/resolution)] ) / ((stop-start)/resolution)
                             mult_pos+=1
 
 
-            Iax = plt.subplot2grid((rows,cols), (pos,col_ind), colspan=1)
+            # Iax = plt.subplot2grid((rows,cols), (pos,col_ind), colspan=1)
+            Iax = subp
             cax2 = Iax.matshow(raster,aspect='auto',vmin=-70.0,vmax=-45.0)
             Iax.xaxis.tick_bottom()
             Iax.axes.get_xaxis().set_ticks([])
@@ -249,7 +257,7 @@ def showMovie(label,simtime,resolution):
 
 ## F: membrane potential rasters for all areas
 
-def potential_raster_multiple_models(fig,recorders,plot_models, labels, areas, starting_neuron,number_cells,simtime,resolution,starting_pos):
+def potential_raster_multiple_models(fig,recorders,plot_models,starting_neuron,number_cells,simtime,resolution,starting_pos):
 
 
     pos = starting_pos
@@ -259,24 +267,21 @@ def potential_raster_multiple_models(fig,recorders,plot_models, labels, areas, s
     cols = len(plot_models)
 
     fig, subplots = plt.subplots(rows, cols, sharex = True, sharey = True, figsize = (3*rows, 3*cols))
-
     fig.subplots_adjust(hspace = 0.4)
 
     for row in range(rows):
-
         for col in range(cols):
-
 
             plot_model = plot_models[col][row]
 
-            if not len(plot_model) == 2:
-
-                print('Not plotting subplot (%i,%i): no data' % (row, col))
+            if not len(plot_model) == 3:
+                print('Not plotting this subplot because not enough arguments have been provided in corresponding tuple (expects 3)')
 
             else:
 
-                population, model = plot_model
-
+                #Draw the plot
+                population, model, yleg = plot_model
+                #Get data
                 rec = [nd for nd in np.arange(0, len(recorders)) if
                      (recorders[nd][1] == population and recorders[nd][2] == model)]
                 if not len(rec) == 0:
@@ -309,17 +314,40 @@ def potential_raster_multiple_models(fig,recorders,plot_models, labels, areas, s
 
                     ax.xaxis.tick_top()
                     plt.setp(ax, yticks=[0, number_cells], yticklabels=['0', str(number_cells - 1)])
-                    # ax.set_ylabel(yleg+model)
+                    ax.set_ylabel(yleg+model)
+
+    return fig
+    # fig.colorbar(cax, ticks=[-70.0, -57.5, -45.0], orientation='horizontal')
+
+
+    def all_topographic(recorders, recorded_models, labels, number_cells, simtime, resolution, start, stop):
+
+        rows = max([len(plot_model) for plot_model in recorded_models])
+        cols = len(recorded_models)
+
+
+        fig, subplots = plt.subplots(rows, cols, sharex=True, sharey=True, figsize=(3 * rows, 3 * cols))
+        fig.subplots_adjust(hspace=0.4)
+        #
+        # fig, subplots = plt.subplots(rows, cols, sharex=True, sharey=True, figsize=(3 * rows, 3 * cols))
+        # fig.subplots_adjust(hspace=0.4)
+
+        for row in range(rows):
+            for col in range(cols):
+                recorded_model = recorded_models[col][row]
+                label = labels[col]
+                if len(recorded_model) == 2:
+                    topographic_representation(subp, recorders, recorded_model, label, number_cells, simtime, resolution, rows, cols, start, stop, row, col)
+                else:
+                    print('Not plotting subplot (%i, %i)' % (row,col))
 
         # Add titles and labels
         for subp, label in zip(subplots[0], labels):
             subp.set_title(label)
 
         for subp, area in zip(subplots[:, 0], areas):
-            subp.set_ylabel(area, size='large')
+            subp.set_ylabel(area, rotation=0, size='large')
 
-        #fig.tight_layout()
+        fig.tight_layout()
 
-
-    return fig
-    # fig.colorbar(cax, ticks=[-70.0, -57.5, -45.0], orientation='horizontal')
+        return fig

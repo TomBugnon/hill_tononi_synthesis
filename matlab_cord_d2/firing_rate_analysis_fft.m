@@ -8,6 +8,7 @@ dirname = '/media/kfujii2/TOSHIBA EXT/experimental_data/lobustness_frequency/ran
 %dirname = '/media/kfujii2/TOSHIBA EXT/experimental_data/lobustness_pattern/walking_human_rate100_scrbl_t/';
 %dirname = '/media/kfujii2/TOSHIBA EXT/experimental_data/lobustness_pattern/moving_rectangle2_rate100_dst/';
 %dirname = '/media/kfujii2/TOSHIBA EXT/experimental_data/lobustness_pattern/scramble_test_moving_rectangle2_rate20_dst/';
+
 filename_v = strcat(dirname, 'spike_Vp_v_L4_exc.mat');
 filename_h = strcat(dirname, 'spike_Vp_h_L4_exc.mat');
 

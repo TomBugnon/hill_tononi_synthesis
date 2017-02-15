@@ -57,10 +57,6 @@ def simulation(Params):
     if not os.path.isdir(net_folder):
         os.makedirs(net_folder)
 
-    conn_folder = net_folder + '/connections'
-    if not os.path.isdir(conn_folder):
-        os.makedirs(conn_folder)
-
     data_folder = net_folder + Params['data_folder']
     if not os.path.isdir(data_folder):
         os.makedirs(data_folder)
@@ -77,9 +73,12 @@ def simulation(Params):
 
     # initialize random seed
     import time
-    msd = int(round(time.time() * 1000))
+    # msd = int(round(time.time() * 1000))
+    msd = 42
     nest.SetKernelStatus({'grng_seed' : msd})
-    nest.SetKernelStatus({'rng_seeds' : range(msd+Params['threads']+1, msd+2*Params['threads']+1)})
+    # Tom debug
+    # nest.SetKernelStatus({'rng_seeds' : range(msd+Params['threads']+1, msd+2*Params['threads']+1)})
+    nest.SetKernelStatus({'rng_seeds': range(msd + Params['threads'] + 1, msd + 2 * Params['threads'] + 1)})
 
     import importlib
     network = importlib.import_module(Params['network'])
@@ -88,10 +87,6 @@ def simulation(Params):
     #import network_full_keiko
     #reload(network_full_keiko)
     # models, layers, conns  = network_full_keiko.get_Network(Params)
-
-    # TODO this should come from network file
-    synapse_models = ['AMPA_syn', 'NMDA_syn', 'GABA_A_syn', 'GABA_B_syn', 'reticular_projection']
-    # synapse_models = ['AMPA_syn', 'NMDA_syn', 'GABA_A_syn', 'GABA_B_syn']
 
     # Create models
     print('Creating models...', end="")
@@ -108,217 +103,14 @@ def simulation(Params):
         exec '%s = tp.CreateLayer(l[1])' % l[0] in globals(), locals()
     print(' done.')
 
-    # now either create brand new connections, or load connectivity files from
-    # connections_file
-    connections_file =  conn_folder + '/connections.pickle'
-
-    # assume alread runned before, and it is going to load connections and layers
-    if Params.has_key('load_connections') and Params['load_connections']:
-
-        if not os.path.isfile(connections_file):
-            raise IOError('File with connections was never created: %s' % connections_file)
-
-        print('Loading connections...', end="")
-        with open(connections_file) as f:
-            (pre, post_intact, post_scrambled, w, d, syn) = pickle.load(f)
-        print(' done.')
-
-        if Params['scrambled']:
-            post = post_scrambled
-        else:
-            post = post_intact
-
-        print('Connecting neurons...', end="")
-        con_dict = {'rule': 'one_to_one'}
-        for (pi, ti, wi, di, syni) in zip(pre, post, w, d, syn):
-            print('.', end="")
-            # print(syni)
-
-            syn_dict = {"model": syni,
-                        'weight': wi,
-                        'delay': di
-                        }
-            nest.Connect(pi, ti, con_dict, syn_dict)
-        print(' done.')
-
-        # print('Connection retina...', end="")
-        # # Create connections, need to insert variable names
-        # for c in conns:
-        #     if c[0]=='Retina_layer':
-        #         eval('tp.ConnectLayers(%s,%s,c[2])' % (c[0], c[1]))
-        # print('done.')
-
-    else:
-        # Create connections, need to insert variable names
-        print('Creating connectiions...', end="")
-        for c in conns:
-            if Params['Np'] < 40:
-                print('%s -> %s' % (c[0], c[1]))
-                c[2]['allow_oversized_mask'] = True
-            else:
-                print('.', end="")
-            eval('tp.ConnectLayers(%s,%s,c[2])' % (c[0], c[1]))
-        print(' done.')
-
-    if Params.has_key('dump_connections') and Params['dump_connections']:
-
-        import glob
-
-        # First dump all nodes and connections to files
-        for l in layers:
-            print('dumping connections for %s' % l[0])
-            eval("tp.DumpLayerNodes(%s, conn_folder + '/nodes_%s.dump')" % (l[0], l[0]) )
-            for synapse in synapse_models:
-                 eval("tp.DumpLayerConnections(%s, '%s', conn_folder + '/connections_%s_%s.dump')" % (l[0], synapse, l[0], synapse) )
-
-        # Now load all nodes, and mark which physical layer they belong to
-        all_nodes_files = glob.glob(conn_folder + "/nodes_*.dump")
-        if len(all_nodes_files) < 1:
-            raise ValueError('No files save for this configuration. First '
-                             'run with load_connection = False')
-
-        pop_nodes = [None] * len(all_nodes_files)
-        pop_names = [None] * len(all_nodes_files)
-        perm_pop_nodes = [None] * len(all_nodes_files)
-        for (idx, pop_file) in enumerate(all_nodes_files):
-
-            population = pop_file[pop_file.find('nodes_')+6:-5]
-            pop_names[idx] = population
-            print('Loading nodes for population %s' % population)
-            pop_nodes[idx] = np.loadtxt(pop_file)
-
-            # identify physical layers
-            n_layer = 0
-            n_nodes = pop_nodes[idx].shape[0]
-            layers = np.zeros((n_nodes,1))
-            for i_line in range(n_nodes):
-                if pop_nodes[idx][i_line, 1] == -3.9 and pop_nodes[idx][i_line, 2] == 3.9:
-                    n_layer += 1
-                layers[i_line] = n_layer
-            pop_nodes[idx] = np.append(pop_nodes[idx], layers, 1)
-
-        # Finally, load connections and save a big vector for each one of the 5
-        # parameters needed by nest.Connect: pre, post, w, d, and synapse_model
-        # Save unmodified and scrambled versions in network.pickle
-
-        all_conn_files = glob.glob(conn_folder + "/connections_*.dump")
-
-        pre = []
-        post_intact = []
-        post_scrambled = []
-        w = []
-        d = []
-        syn = []
-        for (idx, pop_conn_file) in enumerate(all_conn_files):
-
-            population = pop_conn_file[pop_conn_file.find('connections_')+12:-5]
-            print('Scrambling connections for %s (%d out of %d files)' % (population, idx+1, len(all_conn_files)))
-
-            synapse_model = [s for i,s in enumerate(synapse_models) if s in population][0]
-
-            print('Loading file')
-            pop_conns = np.loadtxt(pop_conn_file)
-            tn_lines = pop_conns.shape[0]
-
-            if tn_lines > 0:
-
-                syn.append(synapse_model)
-
-                pre.append(pop_conns[:,0].astype(int))
-                post_intact.append(pop_conns[:,1].astype(int))
-                w.append(pop_conns[:,2])
-                d.append(pop_conns[:,3].astype(int))
-
-                # Do the actual scrfambling
-                # TODO this should be optimized, it is way too slow
-                if any(w == population[0:2] for w in ['Vs', 'Vp']):
-                    print('Scrambling...', end="")
-                    for i_line in range(tn_lines):
-                        if not i_line % round(tn_lines/10.):
-                            print('%d%%, ' % (round(100.*i_line/tn_lines) if i_line > 0 else 0), end="")
-
-                        for (i_pop, this_pop) in enumerate(pop_nodes):
-                            t_idx = np.where(this_pop[:,0] == pop_conns[i_line, 1])[0]
-                            if t_idx.size:
-                                break
-                        if not t_idx.size:
-                            raise ValueError('Could not find tartget %s for node %s' % (pop_conns[i_line, 1], pop_conns[i_line, 0]))
-                        if len(t_idx) > 1:
-                            raise ValueError('Target %s apears in more than one population' % (pop_conns[i_line, 1], pop_conns[i_line, 0]))
-                        new_t_idx = t_idx[0]
-
-                        # For the moment, only scramble connections within the visual cortex
-                        if any(w == pop_names[i_pop][0:2] for w in ['Vs', 'Vp']):
-                            possible_targets = pop_nodes[i_pop][pop_nodes[i_pop][:,3] == pop_nodes[i_pop][new_t_idx,3], 0]
-                            pop_conns[i_line, 1] = np.random.permutation(possible_targets)[0]
-
-                print('done.')
-
-                post_scrambled.append(pop_conns[:,1].astype(int))
-
-        # save results
-        print('Saving results...', end="")
-        with open(connections_file, 'w') as f:
-            pickle.dump((pre, post_intact, post_scrambled, w, d, syn), f)
-        print(' done.')
-
-    if Params.has_key('show_V4_num_conn_figure') and Params['show_V4_num_conn_figure']:
-
-        horizontal_nodes = nest.GetLeaves(Vp_horizontal, properties={'model': 'L4_exc'}, local_only=True)[0]
-        vertical_nodes = nest.GetLeaves(Vp_vertical, properties={'model': 'L4_exc'}, local_only=True)[0]
-
-        n_conns_hor = []
-        for (idx, horizontal_node) in enumerate(horizontal_nodes):
-            tgt_map = []
-            this_conns = nest.GetConnections([horizontal_node], horizontal_nodes, synapse_model='AMPA_syn')
-            tgt_map.extend([conn[1] for conn in this_conns])
-            n_conns_hor.append(len(tgt_map))
-
-        plt.figure()
-        plt.hist(n_conns_hor, range(0, max(n_conns_hor + [30])))
-        plt.title('# of connections Vp(h) L4pyr -> Vp(h) L4Pyr')
-
-        n_conns_hor = []
-        for (idx, horizontal_node) in enumerate(horizontal_nodes):
-            tgt_map = []
-            this_conns = nest.GetConnections([horizontal_node], vertical_nodes, synapse_model='AMPA_syn')
-            tgt_map.extend([conn[1] for conn in this_conns])
-            n_conns_hor.append(len(tgt_map))
-
-            # nest.DisconnectOneToOne(tp_node, tgt_map[0], {"synapse_model": "AMPA_syn"})
-            #nest.Disconnect([tp_node], tgt_map, 'one_to_one', {"synapse_model": "AMPA_syn"})
-
-        plt.figure()
-        plt.hist(n_conns_hor, range(0, max(n_conns_hor + [30])))
-        plt.title('# of connections Vp(h) L4pyr -> Vp(v) L4Pyr')
-
-        n_conns_ver = []
-        for (idx, vertical_node) in enumerate(vertical_nodes):
-            tgt_map = []
-            this_conns = nest.GetConnections([vertical_node], vertical_nodes, synapse_model='AMPA_syn')
-            tgt_map.extend([conn[1] for conn in this_conns])
-            n_conns_ver.append(len(tgt_map))
-
-        plt.figure()
-        plt.hist(n_conns_ver, range(0, max(n_conns_ver + [30])))
-        plt.title('# of connections Vp(v) L4pyr -> Vp(v) L4Pyr')
-
-        n_conns_ver = []
-        for (idx, vertical_node) in enumerate(vertical_nodes):
-            tgt_map = []
-            this_conns = nest.GetConnections([vertical_node], horizontal_nodes, synapse_model='AMPA_syn')
-            tgt_map.extend([conn[1] for conn in this_conns])
-            n_conns_ver.append(len(tgt_map))
-
-        plt.figure()
-        plt.hist(n_conns_ver, range(0, max(n_conns_ver + [30])))
-        plt.title('# of connections Vp(v) L4pyr -> Vp(h) L4Pyr')
-
-        plt.show()
+    # Create connections, need to insert variable names
+    print('Creating connectiions...', end="")
+    for c in conns:
+        print('.', end="")
+        eval('tp.ConnectLayers(%s,%s,c[2])' % (c[0], c[1]))
+    print(' done.')
 
     # Check connections
-
-
     if Params.has_key('show_center_connectivity_figure') and Params['show_center_connectivity_figure']:
 
         # this code only gives one element, and you have no control over the
@@ -386,33 +178,6 @@ def simulation(Params):
 
                 f.savefig(data_folder + '/connectivity_%s_%s.png' % (src_label, tgt_label), dpi=100)
 
-    if Params.has_key('show_V4_connectivity_figure') and Params['show_V4_connectivity_figure']:
-
-        Vp_hor_gids = tp.GetElement(Vp_horizontal, [0,0])
-        n_Vp_hor = len(Vp_hor_gids)
-
-        f = []
-        for idx in range(n_Vp_hor):
-            f.append(plt.figure())
-
-        positions = range(0,41,10)
-        positions[-1] -= 1
-        for xi in range(len(positions)):
-            for yi in range(len(positions)):
-                print("Position [%d,%d] : %d" %(xi,yi,yi*(len(positions))+xi+1))
-                x = positions[xi]
-                y = positions[yi]
-                Vp_hor_gids = tp.GetElement(Vp_horizontal, [x,y])
-                Vp_hor_status = nest.GetStatus(Vp_hor_gids)
-                for (idx, n) in enumerate(Vp_hor_status):
-                    if n['Tau_theta'] == 2.0:
-                        print(idx)
-                        try:
-                            f[idx].add_subplot(len(positions), len(positions), yi*(len(positions))+xi+1)
-                            tp.PlotTargets([Vp_hor_gids[idx]], Vp_horizontal, 'L4_exc', 'AMPA_syn', f[idx])
-                        except:
-                            print('%i bad' % Vp_hor_gids[idx])
-        plt.show()
 
     if Params.has_key('dry_run') and Params['dry_run']:
         print('Only generation, loading and ploting network. No actual simulation done.')
@@ -431,18 +196,10 @@ def simulation(Params):
             nest.SetStatus([n], { "phase": col * 360/(cells_per_cycle-1) })
     '''
     ### keiko
-    if Params['lambda_dg'] >= 0:
-        [nest.SetStatus([n], {"phase": phaseInit(tp.GetPosition([n])[0],
-                                                 Params["lambda_dg"],
-                                                 Params["phi_dg"])})
-        for n in nest.GetLeaves(Retina_layer)[0]]
-    else:
-        # Leonardo: Random retina input
-        [nest.SetStatus([n], {"phase": phaseInit(tp.GetPosition([n])[0],
-                                                 np.pi * np.random.rand(),
-                                                 np.pi * np.random.rand())})
-         for n in nest.GetLeaves(Retina_layer)[0]]
-
+    [nest.SetStatus([n], {"phase": phaseInit(tp.GetPosition([n])[0],
+                                             Params["lambda_dg"],
+                                             Params["phi_dg"])})
+    for n in nest.GetLeaves(Retina_layer)[0]]
 
     # --------------------------------------------------------------------#
     # ---------- SET IB NEURONS ----------------------------------------- #
@@ -463,8 +220,8 @@ def simulation(Params):
     ridx_horizontal = np.random.randint(num_neuron, size=(1,num_ib))[0]
 
     for i in range(1,num_ib,1):
-        nest.SetStatus([L56_vertical_idx[ridx_vertical[i]]], {'h_g_peak': 1.0})
-        nest.SetStatus([L56_horizontal_idx[ridx_horizontal[i]]], {'h_g_peak': 1.0})
+        nest.SetStatus([L56_vertical_idx[ridx_vertical[i]]], {'g_peak_h': 1.0})
+        nest.SetStatus([L56_horizontal_idx[ridx_horizontal[i]]], {'g_peak_h': 1.0})
 
 
 
@@ -481,21 +238,21 @@ def simulation(Params):
     print('Connecting recorders...', end="")
     nest.CopyModel('multimeter', 'RecordingNode',
             params = {'interval'   : Params['resolution'],
-            'record_from': ['V_m'
+            'record_from': ['V_m'],
                             # Put back when plotting synaptic currents, otherwise makes everything slower for no reason
                             # 'I_syn_AMPA',
                             # 'I_syn_NMDA',
                             # 'I_syn_GABA_A',
                             # 'I_syn_GABA_B',
-                            #'g_AMPA',
-                            #'g_NMDA',
-                            #'g_GABAA',
-                            #'g_GABAB',
+                            # 'g_AMPA',
+                            # 'g_NMDA',
+                            # 'g_GABA_A',
+                            # 'g_GABA_B'],
                             #'I_NaP',
                             #'I_KNa',
                             #'I_T',
                             #'I_h'
-                            ],
+                            #]
             'record_to'  : ['memory'],
             'withgid'    : True,
             'withtime'   : True})
@@ -529,18 +286,41 @@ def simulation(Params):
                               (Vs_vertical, 'L56_exc'),
                               (Vs_horizontal, 'L56_exc'),
                               (Vs_vertical, 'L56_inh'),
-                              (Vs_horizontal, 'L56_inh')]:
+                              (Vs_horizontal, 'L56_inh'),
+                              (Vs_cross, 'L23_exc'),
+                              (Vs_cross, 'L4_exc'),
+                              (Vs_cross, 'L4_exc'),
+
+
+                              ]:
     '''
+
+
     for population, model in [(Retina_layer, 'Retina'),
                               (Tp_layer  , 'Tp_exc'),
-                              (Tp_layer  , 'Tp_inh'),
-                              (Vp_vertical, 'L4_exc'),
-                              (Vp_vertical, 'L4_inh'),
-                              (Vp_horizontal, 'L4_exc'),
+                              (Rp_layer  , 'Rp'),
                               (Vp_vertical, 'L23_exc'),
                               (Vp_horizontal, 'L23_exc'),
+                              (Vp_vertical, 'L23_inh'),
+                              (Vp_vertical, 'L4_exc'),
+                              (Vp_horizontal, 'L4_exc'),
+                              (Vp_vertical, 'L4_inh'),
                               (Vp_vertical, 'L56_exc'),
-                              (Rp_layer, 'Rp')]:
+                              (Vp_horizontal, 'L56_exc'),
+                              (Vs_vertical, 'L23_exc'),
+                              (Vs_horizontal, 'L23_exc'),
+                              (Vs_vertical, 'L4_exc'),
+                              (Vs_horizontal, 'L4_exc'),
+                              (Vs_vertical, 'L56_exc'),
+                              (Vs_horizontal, 'L56_exc'),
+                              (Vs_cross, 'L23_exc'),
+                              (Vs_cross, 'L4_exc'),
+                              (Vs_cross, 'L56_exc'),
+
+
+                              ]:
+
+
         print('.', end="")
         rec = nest.Create('RecordingNode')
         recorders.append([rec,population,model])
@@ -587,13 +367,26 @@ def simulation(Params):
                               (Vs_horizontal, 'L56_inh')]:
         '''
 
+
+    #Tom
     for population, model in [(Retina_layer, 'Retina'),
-                              (Tp_layer  , 'Tp_exc'),
-                              (Tp_layer  , 'Tp_inh'),
+                              (Tp_layer, 'Tp_exc'),
+                              (Tp_layer, 'Tp_inh'),
                               (Vp_vertical, 'L23_exc'),
-                              (Vp_horizontal, 'L23_exc'),
                               (Vp_vertical, 'L4_exc'),
-                              (Vp_horizontal, 'L4_exc')]:
+                              (Vp_vertical, 'L56_exc'),
+                              (Vp_vertical, 'L23_inh'),
+                              (Vp_vertical, 'L4_inh'),
+                              (Vp_vertical, 'L56_inh'),
+                              (Vs_vertical, 'L23_exc'),
+                              (Vs_vertical, 'L23_inh'),
+                              (Vs_vertical, 'L4_exc'),
+                              (Vs_vertical, 'L4_inh'),
+                              (Vs_vertical, 'L56_exc'),
+                              (Vs_vertical, 'L56_inh')]:
+
+
+
         print('.', end="")
         rec = nest.Create('spike_detector', params={"withgid": True, "withtime": True})
         #rec = nest.Create('spike_detector')
@@ -730,6 +523,9 @@ def simulation(Params):
 
     plotting.topographic_representation(fig,recorders,recorded_models,labels,Params['Np'],np.sum(Params['intervals']),Params['resolution'],rows,cols,start,stop,8,1)
 
+    if Params.has_key('figure_title'):
+        fig.suptitle(Params['figure_title'], size = 20)
+
     fig.savefig(data_folder + '/figure3.png', dpi=100)
 
     if Params.has_key('show_main_figure') and Params['show_main_figure']:
@@ -741,6 +537,61 @@ def simulation(Params):
     #labels = ["Evoked_Vp_L23_Vertical","Evoked_Vp_L23_Horizontal"]
     #recorded_models = [(Vp_vertical,'L23_exc'),(Vp_horizontal,'L23_exc')]
     #plotting.makeMovie(fig,recorders,recorded_models,labels,Params['Np'],np.sum(Params['intervals']),Params['resolution'])
+
+
+
+    # Plot F: All areas
+
+
+    if Params.has_key('plot_all_regions') and Params['plot_all_regions']:
+
+        print("Creating plot of all cortical areas")
+
+        #First column
+        vertical_models = [(Retina_layer,'Retina'),
+                        (Vp_vertical,'L23_exc'),
+                        (Vp_vertical,'L4_exc'),
+                        (Vp_vertical,'L56_exc'),
+                        (Vs_vertical,'L23_exc'),
+                        (Vs_vertical, 'L4_exc'),
+                        (Vs_vertical, 'L56_exc')]
+        #Second column
+        horizontal_models = [(Retina_layer,'Retina'),
+                        (Vp_horizontal,'L23_exc'),
+                        (Vp_horizontal,'L4_exc'),
+                        (Vp_horizontal,'L56_exc'),
+                        (Vs_horizontal,'L23_exc'),
+                        (Vs_horizontal, 'L4_exc'),
+                        (Vs_horizontal, 'L56_exc')]
+        #Third column
+        cross_models = [(Retina_layer,'Retina'),
+                        (),
+                        (),
+                        (),
+                        (Vs_cross,'L23_exc'),
+                        (Vs_cross, 'L4_exc'),
+                        (Vs_cross, 'L56_exc')]
+
+        #Column labels
+        labels = ['Vertical', 'Horizontal', 'Cross']
+
+        #Row labels
+        areas = ['Retina', 'Primary\nL2/3', 'Primary\nL4', 'Primary\nL5/6', 'Secondary\nL2/3', 'Secondary\nL4', 'Secondary\nL4/6']
+
+        plotcols = [vertical_models, horizontal_models, cross_models]
+
+
+        fig = plotting.potential_raster_multiple_models(fig, recorders, plotcols, labels, areas, 0, Params['Np'],
+                                                  np.sum(Params['intervals']),
+                                                  Params['resolution'],
+                                                  0)
+
+        fig.savefig(data_folder + '/figure_all_areas.png', dpi=100)
+
+
+
+
+
 
 
     #! ====================
@@ -781,15 +632,16 @@ def simulation(Params):
             else:
                 scipy.io.savemat(data_folder + '/recorder_' + p_name + '_' + model + '.mat',
                                  mdict={'senders': data['senders'],
-                                        'V_m': data['V_m']
+                                        'times': data['times'],
+                                        'V_m': data['V_m'] #,
                                         #'I_syn_AMPA': data['I_syn_AMPA'],
                                         #'I_syn_NMDA': data['I_syn_NMDA'],
                                         #'I_syn_GABA_A': data['I_syn_GABA_A'],
                                         #'I_syn_GABA_B': data['I_syn_GABA_B'],
-                                        #'g_AMPA': data['g_AMPA'],
-                                        #'g_NMDA': data['g_NMDA'],
-                                        #'g_GABAA': data['g_GABAA'],
-                                        #'g_GABAB': data['g_GABAB']
+                                        # 'g_AMPA': data['g_AMPA'],
+                                        # 'g_NMDA': data['g_NMDA'],
+                                        # 'g_GABA_A': data['g_GABA_A'],
+                                        # 'g_GABA_B': data['g_GABA_B']
                                         } )
 
 
@@ -839,6 +691,5 @@ def simulation(Params):
 
     network_script = Params['network'] + '.py'
     shutil.copy2(network_script, data_folder + '/' + network_script)
-    shutil.copy2(network_script, conn_folder + '/' + network_script)
 
     print('end')
