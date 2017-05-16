@@ -162,6 +162,7 @@ for run in range(1,2):
                     #'dry_run': True
 
                     'plot_all_regions' : True,
+                    'plot_topo_all_regions' : True,
 
                     'synapse_old' : synapse_old,
                     'NMDA_old' : NMDA_old

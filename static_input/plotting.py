@@ -22,38 +22,40 @@ def potential_raster(fig,recorders,recorded_models,starting_neuron,number_cells,
 
     for population, model in recorded_models:
 
-            l = [nd for nd in np.arange(0,len(recorders)) if (recorders[nd][1] == population and recorders[nd][2] == model)][0]
-            data = nest.GetStatus(recorders[l][0],keys='events')
-            pop = [nd for nd in nest.GetLeaves(population)[0] if nest.GetStatus([nd], 'model')[0]==model]
+        l = [nd for nd in np.arange(0,len(recorders)) if (recorders[nd][1] == population and recorders[nd][2] == model)][0]
+        data = nest.GetStatus(recorders[l][0],keys='events')
+        pop = [nd for nd in nest.GetLeaves(population)[0] if nest.GetStatus([nd], 'model')[0]==model]
 
-            # Retina layer always the first (l=0)
-            if l==0:
-                    rf = rec_from[0]
-            else:
-                    rf = rec_from[1]
+        # Retina layer always the first (l=0)
+        if l==0:
+                rf = rec_from[0]
+        else:
+                rf = rec_from[1]
 
-            raster = np.zeros((number_cells, round((simtime - resolution)/resolution)))
-            senders = data[0]['senders']
+        raster = np.zeros((number_cells, round((simtime - resolution)/resolution)))
+        senders = data[0]['senders']
 
-            for neuron in range(0, len(raster)):
-                    selected_senders = np.where(senders==pop[neuron + starting_neuron])
-                    raster[neuron,:] = (data[0][rf])[selected_senders[0]]
+        for neuron in range(0, len(raster)):
+                selected_senders = np.where(senders==pop[neuron + starting_neuron])
+                raster[neuron,:] = (data[0][rf])[selected_senders[0]]
 
-            Vax = plt.subplot2grid((rows,cols), (pos,0), colspan=cols)
+        Vax = plt.subplot2grid((rows,cols), (pos,0), colspan=cols)
 
 
-            if l>0:
-                cax = Vax.matshow(raster, interpolation='none', aspect='auto',vmin=-70.0,vmax=-45.0)
-                Vax.axes.get_xaxis().set_ticks([])
-            else:
-                # cax = Vax.matshow(raster,aspect='auto') # original
-                cax = Vax.matshow(raster, interpolation='none', aspect='auto',vmin=0.0,vmax=200.0) # keiko
-                fig.colorbar(cax,ticks=[0.0, 100.0, 200.0],orientation='horizontal') # keiko
+        if l>0:
+            cax = Vax.matshow(raster, interpolation='none', aspect='auto',vmin=-70.0,vmax=-45.0)
+            Vax.axes.get_xaxis().set_ticks([])
+        else:
+            # cax = Vax.matshow(raster,aspect='auto') # original
+            # cax = Vax.matshow(raster, interpolation='none', aspect='auto',vmin=0.0,vmax=200.0) # keiko
+            # fig.colorbar(cax,ticks=[0.0, 100.0, 200.0],orientation='horizontal') # keiko
+            cax = Vax.matshow(raster, interpolation='none', aspect='auto',vmin=np.min(raster),vmax=np.max(raster)) # Tom
+            fig.colorbar(cax,ticks=[np.min(raster), np.max(raster)],orientation='horizontal') # Tom
 
-            Vax.xaxis.tick_top()
-            plt.setp(Vax, yticks=[0, number_cells], yticklabels=['0', str(number_cells-1)])
-            Vax.set_ylabel(model)
-            pos+=1
+        Vax.xaxis.tick_top()
+        plt.setp(Vax, yticks=[0, number_cells], yticklabels=['0', str(number_cells-1)])
+        Vax.set_ylabel(model)
+        pos+=1
 
 
     fig.colorbar(cax,ticks=[-70.0, -57.5, -45.0],orientation='horizontal')
@@ -69,74 +71,75 @@ def intracellular_potentials(fig, recorders, recorded_models, starting_neuron, r
 
     for population, model in recorded_models:
 
-            l = [nd for nd in np.arange(0,len(recorders)) if (recorders[nd][1] == population and recorders[nd][2] == model)][0]
-            data = nest.GetStatus(recorders[l][0],keys='events')
-            pop = [nd for nd in nest.GetLeaves(population)[0] if nest.GetStatus([nd], 'model')[0]==model]
+        l = [nd for nd in np.arange(0,len(recorders)) if (recorders[nd][1] == population and recorders[nd][2] == model)][0]
+        data = nest.GetStatus(recorders[l][0],keys='events')
+        pop = [nd for nd in nest.GetLeaves(population)[0] if nest.GetStatus([nd], 'model')[0]==model]
 
-            senders = data[0]['senders']
-            selected_senders = np.where(senders==pop[starting_neuron])
+        senders = data[0]['senders']
+        selected_senders = np.where(senders==pop[starting_neuron])
 
-            Vax = plt.subplot2grid((rows,cols), (pos,0), colspan=cols)
-            Vax.plot( (data[0]['V_m'])[selected_senders[0]] )
-            if(counter!=(len(recorded_models)-1)):
-                Vax.axes.get_xaxis().set_ticks([])
-            plt.setp(Vax, yticks=[-80, 0], yticklabels=['-80', '0'])
-            Vax.set_ylabel(model)
-            Vax.set_xlabel('time (ms)')
-            pos+=1
-            counter+=1
+        Vax = plt.subplot2grid((rows,cols), (pos,0), colspan=cols)
+        Vax.plot( (data[0]['V_m'])[selected_senders[0]] )
+        if(counter!=(len(recorded_models)-1)):
+            Vax.axes.get_xaxis().set_ticks([])
+        plt.setp(Vax, yticks=[-80, 0], yticklabels=['-80', '0'])
+        Vax.set_ylabel(model)
+        Vax.set_xlabel('time (ms)')
+        pos+=1
+        counter+=1
 
-            # keiko
-            #min_x = np.min(data[0]['times'])
-            #max_x = np.max(data[0]['times'])
-            plt.xlim(0, total_time)
+        # keiko
+        #min_x = np.min(data[0]['times'])
+        #max_x = np.max(data[0]['times'])
+        plt.xlim(0, total_time)
 
 
 ## C: time-averaged topographic representation of the membrane potential
 
-def topographic_representation(subp,recorders,recorded_models,labels,number_cells,simtime,resolution,rows,cols,start,stop,starting_pos,col_paint):
+def topographic_representation(fig,recorders,recorded_models,labels, number_cells,simtime,resolution,rows,cols,start,stop,starting_pos,col_paint, input_data = 'V_m', area_label = []):
 
     col_ind = col_paint
     pos = starting_pos
     counter = 0
-    rec_from = ['rate','V_m']
 
     for population, model in recorded_models:
 
-            l = [nd for nd in np.arange(0,len(recorders)) if (recorders[nd][1] == population and recorders[nd][2] == model)][0]
-            data = nest.GetStatus(recorders[l][0],keys='events')
-            pop = [nd for nd in nest.GetLeaves(population)[0] if nest.GetStatus([nd], 'model')[0]==model]
+        l = [nd for nd in np.arange(0,len(recorders)) if (recorders[nd][1] == population and recorders[nd][2] == model)][0]
+        data = nest.GetStatus(recorders[l][0],keys='events')
+        pop = [nd for nd in nest.GetLeaves(population)[0] if nest.GetStatus([nd], 'model')[0]==model]
 
-            # Retina layer always the first (l=0)
-            if l==0:
-                    rf = rec_from[0]
-            else:
-                    rf = rec_from[1]
+        raster = np.zeros((number_cells, number_cells))
+        mult_pos = 0
+        senders = data[0]['senders']
+        for x in range(0, number_cells):
+                for y in range(0, number_cells):
 
-            raster = np.zeros((number_cells, number_cells))
-            mult_pos = 0
-            senders = data[0]['senders']
-            for x in range(0, number_cells):
-                    for y in range(0, number_cells):
-
-                            selected_senders = np.where(senders==pop[mult_pos])
-                            ind_rec = (data[0][rf])[selected_senders[0]]
-                            raster[y,x] = np.sum( ind_rec[int(start/resolution):int(stop/resolution)] ) / ((stop-start)/resolution)
-                            mult_pos+=1
+                        selected_senders = np.where(senders==pop[mult_pos])
+                        ind_rec = (data[0][input_data])[selected_senders[0]]
+                        raster[y,x] = np.sum( ind_rec[int(start/resolution):int(stop/resolution)] ) / ((stop-start)/resolution)
+                        mult_pos+=1
 
 
-            # Iax = plt.subplot2grid((rows,cols), (pos,col_ind), colspan=1)
-            Iax = subp
+        Iax = plt.subplot2grid((rows,cols), (pos,col_ind), colspan=1)
+        if input_data == 'V_m':
             cax2 = Iax.matshow(raster,aspect='auto',vmin=-70.0,vmax=-45.0)
-            Iax.xaxis.tick_bottom()
-            Iax.axes.get_xaxis().set_ticks([])
-            Iax.axes.get_yaxis().set_ticks([])
-            Iax.set_ylabel(model)
-            Iax.set_xlabel(labels[counter])
-            counter+=1
-            col_ind+=1
+        else:
+            cax2 = Iax.matshow(raster,aspect='auto', vmin = raster.min(), vmax = raster.max())
 
-    fig.colorbar(cax2,ticks=[-70.0, -57.5, -45.0])
+        Iax.xaxis.tick_bottom()
+        Iax.axes.get_xaxis().set_ticks([])
+        Iax.axes.get_yaxis().set_ticks([])
+        if len(area_label) > 0:
+            Iax.set_ylabel(area_label)
+        Iax.set_xlabel(labels[counter])
+        counter+=1
+        col_ind+=1
+
+    if input_data == 'V_m':
+        fig.colorbar(cax2, ticks=[-70.0, -57.5, -45.0])
+    else:
+        fig.colorbar(cax2, ticks = [raster.min(), raster.max()])
+
 
 
 ## D: Intrinsic currents
@@ -148,21 +151,21 @@ def intrinsic_currents(recorders,recorded_models,starting_neuron):
 
     for population, model in recorded_models:
 
-            l = [nd for nd in np.arange(0,len(recorders)) if (recorders[nd][1] == population and recorders[nd][2] == model)][0]
-            data = nest.GetStatus(recorders[l][0],keys='events')
-            pop = [nd for nd in nest.GetLeaves(population)[0] if nest.GetStatus([nd], 'model')[0]==model]
+        l = [nd for nd in np.arange(0,len(recorders)) if (recorders[nd][1] == population and recorders[nd][2] == model)][0]
+        data = nest.GetStatus(recorders[l][0],keys='events')
+        pop = [nd for nd in nest.GetLeaves(population)[0] if nest.GetStatus([nd], 'model')[0]==model]
 
-            senders = data[0]['senders']
-            selected_senders = np.where(senders==pop[starting_neuron])
+        senders = data[0]['senders']
+        selected_senders = np.where(senders==pop[starting_neuron])
 
-            Vax = plt.subplot2grid((1,1), (0,0), colspan=1)
-            Vax.plot( (data[0]['I_h'])[selected_senders[0]] ,label='I_h')
-            Vax.plot( (data[0]['I_KNa'])[selected_senders[0]] ,label='I_KNa')
-            Vax.plot( (data[0]['I_NaP'])[selected_senders[0]],label='I_NaP' )
+        Vax = plt.subplot2grid((1,1), (0,0), colspan=1)
+        Vax.plot( (data[0]['I_h'])[selected_senders[0]] ,label='I_h')
+        Vax.plot( (data[0]['I_KNa'])[selected_senders[0]] ,label='I_KNa')
+        Vax.plot( (data[0]['I_NaP'])[selected_senders[0]],label='I_NaP' )
 
-            Vax.legend(fancybox=True)
-            Vax.set_ylabel(model)
-            Vax.set_xlabel('time (ms)')
+        Vax.legend(fancybox=True)
+        Vax.set_ylabel(model)
+        Vax.set_xlabel('time (ms)')
 
 
 # Keiko
@@ -257,7 +260,7 @@ def showMovie(label,simtime,resolution):
 
 ## F: membrane potential rasters for all areas
 
-def potential_raster_multiple_models(fig,recorders,plot_models,starting_neuron,number_cells,simtime,resolution,starting_pos):
+def potential_raster_multiple_models(fig,recorders,plot_models, labels, areas, starting_neurons_list,number_cells_list,simtime,resolution,starting_pos):
 
 
     pos = starting_pos
@@ -267,21 +270,24 @@ def potential_raster_multiple_models(fig,recorders,plot_models,starting_neuron,n
     cols = len(plot_models)
 
     fig, subplots = plt.subplots(rows, cols, sharex = True, sharey = True, figsize = (3*rows, 3*cols))
+
     fig.subplots_adjust(hspace = 0.4)
 
     for row in range(rows):
+
         for col in range(cols):
+
 
             plot_model = plot_models[col][row]
 
-            if not len(plot_model) == 3:
-                print('Not plotting this subplot because not enough arguments have been provided in corresponding tuple (expects 3)')
+            if not len(plot_model) == 2:
+
+                print('Not plotting subplot (%i,%i): no data' % (row, col))
 
             else:
 
-                #Draw the plot
-                population, model, yleg = plot_model
-                #Get data
+                population, model = plot_model
+
                 rec = [nd for nd in np.arange(0, len(recorders)) if
                      (recorders[nd][1] == population and recorders[nd][2] == model)]
                 if not len(rec) == 0:
@@ -295,11 +301,11 @@ def potential_raster_multiple_models(fig,recorders,plot_models,starting_neuron,n
                     else:
                         rf = rec_from[1]
 
-                    raster = np.zeros((number_cells, round((simtime - resolution) / resolution)))
+                    raster = np.zeros((number_cells_list[row], round((simtime - resolution) / resolution)))
                     senders = data[0]['senders']
 
                     for neuron in range(0, len(raster)):
-                        selected_senders = np.where(senders == pop[neuron + starting_neuron])
+                        selected_senders = np.where(senders == pop[neuron + starting_neurons_list[row]])
                         raster[neuron, :] = (data[0][rf])[selected_senders[0]]
 
                     ax = subplots[row, col]
@@ -313,41 +319,58 @@ def potential_raster_multiple_models(fig,recorders,plot_models,starting_neuron,n
                         # fig.colorbar(cax, ticks=[0.0, 100.0, 200.0], orientation='horizontal')  # keiko
 
                     ax.xaxis.tick_top()
-                    plt.setp(ax, yticks=[0, number_cells], yticklabels=['0', str(number_cells - 1)])
-                    ax.set_ylabel(yleg+model)
+                    plt.setp(ax, yticks=[0, number_cells_list[row]], yticklabels=['0', str(number_cells_list[row] - 1)])
+                    # ax.set_ylabel(yleg+model)
+
+    # Add titles and labels
+    for subp, label in zip(subplots[0], labels):
+        subp.set_title(label)
+
+    for subp, area in zip(subplots[:, 0], areas):
+        subp.set_ylabel(area, size='large')
+
+    #fig.tight_layout()
 
     return fig
     # fig.colorbar(cax, ticks=[-70.0, -57.5, -45.0], orientation='horizontal')
 
 
-    def all_topographic(recorders, recorded_models, labels, number_cells, simtime, resolution, start, stop):
+def all_topographic(recorders, recorded_models, labels, areas, number_cells_list, simtime, resolution, start, stop):
 
-        rows = max([len(plot_model) for plot_model in recorded_models])
-        cols = len(recorded_models)
+    rows = max([len(plot_model) for plot_model in recorded_models])
+    cols = len(recorded_models)
 
 
-        fig, subplots = plt.subplots(rows, cols, sharex=True, sharey=True, figsize=(3 * rows, 3 * cols))
-        fig.subplots_adjust(hspace=0.4)
-        #
-        # fig, subplots = plt.subplots(rows, cols, sharex=True, sharey=True, figsize=(3 * rows, 3 * cols))
-        # fig.subplots_adjust(hspace=0.4)
+    fig, subplots = plt.subplots(rows, cols, sharex=True, sharey=True, figsize=(9, 12))
+    fig.subplots_adjust(hspace=0.4)
+    #
+    # fig, subplots = plt.subplots(rows, cols, sharex=True, sharey=True, figsize=(3 * rows, 3 * cols))
+    # fig.subplots_adjust(hspace=0.4)
 
-        for row in range(rows):
-            for col in range(cols):
-                recorded_model = recorded_models[col][row]
-                label = labels[col]
-                if len(recorded_model) == 2:
-                    topographic_representation(subp, recorders, recorded_model, label, number_cells, simtime, resolution, rows, cols, start, stop, row, col)
+    for row in range(rows):
+        for col in range(cols):
+            recorded_model = recorded_models[col][row]
+            label = labels[col]
+            if len(recorded_model) == 2:
+                if recorded_model[1] == 'Retina':
+                    input_data = 'rate'
                 else:
-                    print('Not plotting subplot (%i, %i)' % (row,col))
+                    input_data = 'V_m'
+                topographic_representation(fig, recorders, [recorded_model],
+                                           label, number_cells_list[row], simtime, resolution,
+                                           rows, cols,
+                                           start, stop, row, col,
+                                           input_data = input_data, area_label= areas[row])
+            else:
+                print('Not plotting subplot (%i, %i)' % (row,col))
+    #
+    # # Add titles and labels
+    # for subp, label in zip(subplots[0], labels):
+    #     subp.set_title(label)
+    #
+    # for subp, area in zip(subplots[:, 0], areas):
+    #     subp.set_ylabel(area, size='large')
 
-        # Add titles and labels
-        for subp, label in zip(subplots[0], labels):
-            subp.set_title(label)
+    fig.tight_layout()
 
-        for subp, area in zip(subplots[:, 0], areas):
-            subp.set_ylabel(area, rotation=0, size='large')
-
-        fig.tight_layout()
-
-        return fig
+    return fig

@@ -18,82 +18,69 @@ reload(static_figure)
 # reload(test_scrambled_intact)
 
 
-# sim_fig_3 = True
-# sim_fig_4 = False
-
-#p_ratio = 1.
-p_ratio = 2.
+sim_fig_3 = True
 
 # vis_size = [10, 7]
 vis_size = [40, 30]
+# vis_size = [80, 60]
 
 for run in range(1,2):
-
 
     root_folder = '/Users/Tom/Documents/projects/network_simulations/HEAD_version/full/'
     root_folder = root_folder + 'static_images/'
 
-    # root_folder = '/Users/Tom/Desktop/garbage'
+    network = 'network_full_newNEST_modify'
 
-    #network ='network_full_keiko'
-    #network ='network_full_keiko2'
-    # network = 'network_full_leonardo'
-    network = 'network_full_tom'
-    #network = 'network_full_leonardo2'
-
-    # scramble network connections? only works with network_full_leonardo!
-    # scramble = True
-    # scramble = False
-
-    # structured_input = True
-    # structured_input = False
+    NMDA_old = False
+    synapse_old = True
 
 
-    ret_rate = 100.0
+    specific_name = 'all_horiz_intralaminar_1.5'
 
-    synapse_keiko = True
-    NMDA_keiko = True
-
+    max_ret_rate = 400.0
 
     edge_wrap = True
-    #edge_wrap = False
-    net_folder = '/%s_edge_wrap_%d_Np_%d_Ns_%d_p_ratio_%d_NMDA_%s_synapse_%s' % \
-                 (network,
-                  1*edge_wrap, vis_size[0], vis_size[1], p_ratio,
-                  'keiko' if NMDA_keiko else 'default',
-                  'keiko' if synapse_keiko else 'default')
+    net_folder = '/%s_edge_wrap_%d_Np_%d_Ns_%d_NMDA_%s_synapse_%s' % \
+                  (network,
+                   1*edge_wrap, vis_size[0], vis_size[1],
+                   'old' if NMDA_old else 'new',
+                   'old' if synapse_old else 'new')
 
-    new_image = True #If false, loads image_folder+image_name. if True, uses new_image_elements to randomly create new image and saves it in image_folder+image_name
-    image_folder = '/Users/Tom/Documents/projects/network_simulations/'
-    image_name = ''
-    new_image_elements = {'horizontal':{'size':3, 'number':1}, 'vertical':{'size':2, 'number':1}, 'cross':{'size':2, 'number':1}} #Elements of the created image if none is specified
+    new_image = False #If false, loads image_folder+image_name. if True, uses new_image_elements to randomly create new image and saves it in image_folder+image_name
+    image_folder = root_folder + 'images/'
+    image_name = 'horiz_vert_cross' # Don't add the extension (.pickle)
+    new_image_elements = {'horizontal':{'size':(15,4), 'number':1}, 'vertical':{'size':(4,15), 'number':1}, 'cross':{'size':(9,3), 'number':0}} #Elements of the created image if none is specified
 
-    data_folder = '/%s_rate%d_run%d' % (image_name,int(ret_rate), run)
+    data_folder = '/%s_rate%d_run%d_%s' % (image_name,int(max_ret_rate), run, specific_name)
 
 
     Params = {
         'dump_connections' : False, # Takes a lot of disk space and time! half gigabyte...
         'load_connections' : False,   # Load connections from files GENERATED IN A PREVIOUS RUN
         'show_main_figure' : False,
-        'start_membrane_potential' : 120.0,
-        'end_membrane_potential' : 140.0,
+        'start_membrane_potential' : 0.0,
+        'end_membrane_potential' : 150.0,
         'show_V4_num_conn_figure' : False,
         'show_V4_connectivity_figure' : False,
         'show_center_connectivity_figure' : False,
-        'save_recorders' : True,
+
+        'save_recorders' : False,
         #'save_recorders' : False,
         'network' : network,
         #'Np': 8,
         #'Ns': 4,
+        # 'Np': 80,
+        # 'Ns': 60,
+        # 'visSize': 16.,
         'Np': 40,
         'Ns': 30,
-        'visSize': 8.0,
+        'visSize': 8.,
 
         'threads': 12,
         #'intervals': [100.0, 250.0, 650.0],  # original
         #'intervals': [5000.0],  # keiko
-        'initiation_time' : 100.,
-        'intervals': [100.0],  # leonardo
+        'initiation_time' : 0.,
+        'intervals': [200.0],
 
         'resolution': 1.0,
 
@@ -104,15 +91,14 @@ for run in range(1,2):
         'data_folder': data_folder,
 
         # for debugin
-        'p_ratio': p_ratio,
         'dry_run': False,
         #'dry_run': True
 
-        'plot_all_regions' : True,
-        'plot_static_all_regions' : True,
+        'plot_all_regions' : False,
+        'plot_topo_all_regions' : True,
 
-        'synapse_keiko' : synapse_keiko,
-        'NMDA_keiko' : NMDA_keiko,
+        'synapse_old' : synapse_old,
+        'NMDA_old' : NMDA_old,
 
         #input image:
         'image_folder' : image_folder,
@@ -121,8 +107,11 @@ for run in range(1,2):
         'new_image_elements' : new_image_elements,
 
         #retina params:
-        'ret_rate': ret_rate,  # rate = luminance * ret_rate + baseline_ret_rate
-        'ret_rate_baseline':20
+        'ret_rate': max_ret_rate,  # rate(i) = ret_rate if luminance = 1 else min_rate
+        'ret_rate_baseline':50., #Unused if automatic_min_rate = True, in which case min_rate = ret_rate_baseline
+        'automatic_min_rate':True, #If true, determines min_rate ('off' pixels) so that mean rate of whole retina  is mean_rate
+        'mean_rate':70.
+
 
     }
 
