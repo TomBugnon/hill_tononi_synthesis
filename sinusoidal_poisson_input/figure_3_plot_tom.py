@@ -480,7 +480,7 @@ def simulation(Params):
     print('Connecting recorders...', end="")
     nest.CopyModel('multimeter', 'RecordingNode',
             params = {'interval'   : Params['resolution'],
-            'record_from': ['V_m'
+            'record_from': ['V_m'],
                             # Put back when plotting synaptic currents, otherwise makes everything slower for no reason
                             # 'I_syn_AMPA',
                             # 'I_syn_NMDA',
@@ -494,7 +494,7 @@ def simulation(Params):
                             #'I_KNa',
                             #'I_T',
                             #'I_h'
-                            ],
+                            #]
             'record_to'  : ['memory'],
             'withgid'    : True,
             'withtime'   : True})
@@ -523,6 +523,9 @@ def simulation(Params):
 
 
                               ]:
+
+
+        print('.', end="")
         rec = nest.Create('RecordingNode')
         recorders.append([rec,population,model])
         if (model=='Retina'):
@@ -567,15 +570,7 @@ def simulation(Params):
                               (Vs_vertical, 'L56_inh'),
                               (Vs_horizontal, 'L56_inh')]:
         '''
-    '''
-    for population, model in [(Retina_layer, 'Retina'),
-                              (Tp_layer  , 'Tp_exc'),
-                              (Tp_layer  , 'Tp_inh'),
-                              (Vp_vertical, 'L23_exc'),
-                              (Vp_horizontal, 'L23_exc'),
-                              (Vp_vertical, 'L4_exc'),
-                              (Vp_horizontal, 'L4_exc')]:
-        '''
+
 
     #Tom
     for population, model in [(Retina_layer, 'Retina'),
@@ -731,6 +726,9 @@ def simulation(Params):
     labels = ["Horizontal"]
 
     plotting.topographic_representation(fig,recorders,recorded_models,labels,Params['Np'],np.sum(Params['intervals']),Params['resolution'],rows,cols,start,stop,8,1)
+
+    if Params.has_key('figure_title'):
+        fig.suptitle(Params['figure_title'], size = 20)
 
     fig.savefig(data_folder + '/figure3.png', dpi=100)
 

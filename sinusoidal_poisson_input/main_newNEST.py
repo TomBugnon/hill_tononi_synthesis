@@ -30,7 +30,7 @@ for run in range(1,2):
     # for synapse_old in [True, False]:
     #     for NMDA_old in [True, False]:
     for synapse_old in [True]:
-        for NMDA_old in [False]:
+        for NMDA_old in [True]:
 
             if sim_fig_3:
 
@@ -94,6 +94,7 @@ for run in range(1,2):
                     #'dry_run': True
 
                     'plot_all_regions' : True,
+                    'plot_topo_all_regions': True,
 
                     'synapse_old' : synapse_old,
                     'NMDA_old' : NMDA_old,
